@@ -1,0 +1,1600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spartan Prep AI — SJSU Exam Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600&amp;family=DM+Sans:wght@300;400;500;600&amp;display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+  <style>
+    :root {
+      --blue:        #0055A2;
+      --blue-dark:   #003876;
+      --blue-deeper: #002655;
+      --gold:        #E5A823;
+      --gold-light:  #F5C842;
+      --gold-pale:   #FFF8E7;
+      --white:       #FFFFFF;
+      --gray-50:     #F7F8FB;
+      --gray-100:    #EEF0F6;
+      --gray-200:    #DDE1EC;
+      --gray-400:    #9AA0B4;
+      --gray-600:    #5A6172;
+      --gray-800:    #1D2030;
+      --success:     #22C55E;
+      --danger:      #EF4444;
+      --warning:     #F59E0B;
+      --shadow-xs:   0 1px 3px rgba(0,0,0,.07);
+      --shadow-sm:   0 2px 8px rgba(0,0,0,.08);
+      --shadow:      0 4px 16px rgba(0,0,0,.10);
+      --shadow-lg:   0 12px 36px rgba(0,0,0,.12);
+      --r:           12px;
+      --r-sm:        8px;
+      --r-lg:        18px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'DM Sans', sans-serif; background: var(--gray-50); color: var(--gray-800); height: 100vh; overflow: hidden; }
+    .layout { display: flex; height: 100vh; overflow: hidden; }
+
+    /* Sidebar */
+    .sidebar { width: 245px; min-width: 245px; background: var(--blue-dark); display: flex; flex-direction: column; height: 100vh; overflow-y: auto; }
+    .sidebar-brand { padding: 20px 16px 18px; display: flex; align-items: center; gap: 11px; border-bottom: 1px solid rgba(255,255,255,.08); }
+    .brand-badge { width: 38px; height: 38px; background: var(--gold); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--blue-dark); font-size: 14px; flex-shrink: 0; }
+    .brand-title { font-family: 'Playfair Display', serif; font-size: 15px; color: #fff; line-height: 1.2; }
+    .brand-sub   { font-size: 11px; color: rgba(255,255,255,.4); }
+    .sidebar-nav { padding: 14px 8px; flex: 1; }
+    .nav-section-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: rgba(255,255,255,.28); padding: 8px 12px 4px; }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 13px; border-radius: var(--r-sm); cursor: pointer; color: rgba(255,255,255,.62); font-size: 13.5px; transition: all .14s; margin-bottom: 2px; }
+    .nav-item:hover { background: rgba(255,255,255,.07); color: rgba(255,255,255,.9); }
+    .nav-item.active { background: var(--blue); color: #fff; font-weight: 500; }
+    .nav-icon { font-size: 15px; width: 20px; text-align: center; }
+    .sidebar-files { padding: 10px 8px 12px; border-top: 1px solid rgba(255,255,255,.08); }
+    .files-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: rgba(255,255,255,.28); padding: 4px 12px 8px; }
+    .upload-drop { border: 1.5px dashed rgba(255,255,255,.18); border-radius: var(--r-sm); padding: 14px 10px; text-align: center; cursor: pointer; transition: all .18s; margin-bottom: 6px; }
+    .upload-drop:hover, .upload-drop.drag { border-color: var(--gold); background: rgba(229,168,35,.06); }
+    .upload-drop-icon { font-size: 20px; margin-bottom: 4px; }
+    .upload-drop-text { font-size: 11px; color: rgba(255,255,255,.5); }
+    .upload-drop-hint { font-size: 10px; color: rgba(255,255,255,.3); margin-top: 2px; }
+    .file-row { display: flex; align-items: center; gap: 7px; padding: 7px 12px; border-radius: var(--r-sm); }
+    .file-row:hover .file-x { opacity: 1; }
+    .file-ico { font-size: 13px; }
+    .file-nm { flex: 1; font-size: 11px; color: rgba(255,255,255,.6); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .file-x { opacity: 0; color: var(--danger); cursor: pointer; font-size: 15px; line-height: 1; transition: opacity .14s; }
+    .sidebar-user { padding: 12px 16px; border-top: 1px solid rgba(255,255,255,.08); display: flex; align-items: center; gap: 10px; }
+    .user-avi { width: 30px; height: 30px; background: rgba(255,255,255,.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #fff; }
+    .user-name { font-size: 12.5px; font-weight: 500; color: #fff; }
+    .user-status { font-size: 10.5px; color: #4ade80; }
+
+    /* Main */
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .topbar { background: #fff; border-bottom: 1px solid var(--gray-100); padding: 13px 28px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; position: relative; z-index: 5; }
+    .topbar-title { font-family: 'Playfair Display', serif; font-size: 21px; color: var(--gray-800); }
+    .topbar-sub   { font-size: 12.5px; color: var(--gray-400); margin-top: 1px; }
+    .content { padding: 26px 28px; overflow-y: auto; flex: 1; }
+
+    /* Cards */
+    .card { background: #fff; border-radius: var(--r); padding: 22px; box-shadow: var(--shadow-xs); border: 1px solid var(--gray-100); }
+    .card-title { font-family: 'Playfair Display', serif; font-size: 17px; color: var(--gray-800); margin-bottom: 3px; }
+    .card-sub   { font-size: 12.5px; color: var(--gray-400); margin-bottom: 18px; }
+
+    /* Buttons */
+    .btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 18px; border-radius: var(--r-sm); font-size: 13.5px; font-weight: 500; cursor: pointer; border: none; font-family: 'DM Sans', sans-serif; transition: all .14s; }
+    .btn-primary { background: var(--blue); color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: var(--blue-dark); }
+    .btn-gold    { background: var(--gold); color: var(--blue-dark); }
+    .btn-gold:hover:not(:disabled) { background: var(--gold-light); }
+    .btn-outline { background: transparent; border: 1.5px solid var(--gray-200); color: var(--gray-600); }
+    .btn-outline:hover:not(:disabled) { border-color: var(--blue); color: var(--blue); }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .btn-sm { padding: 6px 13px; font-size: 12.5px; }
+    .btn-danger { background: rgba(239,68,68,.1); color: #b91c1c; border: none; }
+    .btn-danger:hover:not(:disabled) { background: rgba(239,68,68,.2); }
+    .btn-xs { padding: 4px 10px; font-size: 11.5px; }
+
+    /* Spinner */
+    .spin { width: 18px; height: 18px; border: 2px solid rgba(255,255,255,.35); border-top-color: #fff; border-radius: 50%; animation: spin .65s linear infinite; }
+    .spin-blue { border-color: rgba(0,85,162,.2); border-top-color: var(--blue); }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Progress */
+    .progress { height: 5px; background: var(--gray-100); border-radius: 3px; overflow: hidden; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, var(--blue), var(--gold)); border-radius: 3px; transition: width .35s ease; }
+
+    /* Alerts */
+    .alert { padding: 11px 14px; border-radius: var(--r-sm); font-size: 13px; display: flex; align-items: flex-start; gap: 8px; margin-bottom: 14px; line-height: 1.5; }
+    .alert-warn { background: #FEF3C7; color: #92400E; border: 1px solid #FDE68A; }
+    .alert-info { background: rgba(0,85,162,.07); color: var(--blue-dark); border: 1px solid rgba(0,85,162,.15); }
+
+    /* Badges */
+    .badge { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .badge-gold  { background: var(--gold-pale); color: #92680A; }
+    .badge-blue  { background: rgba(0,85,162,.1); color: var(--blue); }
+    .badge-green { background: rgba(34,197,94,.1); color: #15803d; }
+    .badge-red    { background: rgba(239,68,68,.1); color: #b91c1c; }
+    .badge-orange { background: rgba(245,158,11,.1); color: #92400E; }
+
+    /* Input */
+    .inp, textarea.inp { width: 100%; padding: 9px 13px; border: 1.5px solid var(--gray-200); border-radius: var(--r-sm); font-family: 'DM Sans', sans-serif; font-size: 13.5px; color: var(--gray-800); outline: none; transition: border-color .14s; }
+    .inp:focus { border-color: var(--blue); }
+    textarea.inp { resize: vertical; min-height: 90px; }
+    select.inp { cursor: pointer; }
+
+    /* Flashcard */
+    .fc-wrap { width: 100%; max-width: 580px; perspective: 1000px; cursor: pointer; margin: 0 auto; }
+    .fc { width: 100%; height: 255px; position: relative; transform-style: preserve-3d; transition: transform .5s cubic-bezier(.4,0,.2,1); }
+    .fc.flipped { transform: rotateY(180deg); }
+    .fc-face { position: absolute; inset: 0; backface-visibility: hidden; border-radius: var(--r-lg); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px; text-align: center; box-shadow: var(--shadow-lg); }
+    .fc-front { background: linear-gradient(135deg, var(--blue) 0%, var(--blue-dark) 100%); color: #fff; }
+    .fc-back  { background: #fff; color: var(--gray-800); transform: rotateY(180deg); border: 1px solid var(--gray-100); }
+    .fc-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; margin-bottom: 14px; }
+    .fc-front .fc-label { color: var(--gold); }
+    .fc-back  .fc-label { color: var(--blue); }
+    .fc-text  { font-size: 19px; font-weight: 500; line-height: 1.45; }
+    .fc-hint  { font-size: 11px; opacity: .35; margin-top: 18px; }
+    .fc-dots  { display: flex; justify-content: center; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+    .fc-dot   { width: 8px; height: 8px; border-radius: 50%; cursor: pointer; flex-shrink: 0; transition: all .15s; }
+    .fc-nav   { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; max-width: 580px; margin-left: auto; margin-right: auto; }
+    .mastery-row { display: flex; gap: 12px; margin-top: 14px; max-width: 580px; margin-left: auto; margin-right: auto; }
+    .m-btn { flex: 1; padding: 11px; border: none; border-radius: var(--r-sm); cursor: pointer; font-size: 13.5px; font-weight: 500; font-family: 'DM Sans', sans-serif; transition: all .14s; }
+    .m-btn.still { background: rgba(239,68,68,.1); color: #b91c1c; }
+    .m-btn.still:hover { background: rgba(239,68,68,.2); }
+    .m-btn.got   { background: rgba(34,197,94,.1); color: #15803d; }
+    .m-btn.got:hover   { background: rgba(34,197,94,.2); }
+
+    /* Quiz */
+    .q-opt { display: block; width: 100%; text-align: left; padding: 13px 17px; border: 1.5px solid var(--gray-200); border-radius: var(--r-sm); margin-bottom: 9px; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 13.5px; background: #fff; color: var(--gray-800); transition: all .14s; }
+    .q-opt:hover:not(:disabled) { border-color: var(--blue); background: rgba(0,85,162,.04); }
+    .q-opt.sel   { border-color: var(--blue); background: rgba(0,85,162,.06); }
+    .q-opt.right { border-color: var(--success); background: rgba(34,197,94,.08); color: #15803d; font-weight: 500; }
+    .q-opt.wrong { border-color: var(--danger); background: rgba(239,68,68,.08); color: #b91c1c; }
+    .explain-box { background: var(--gold-pale); border: 1px solid rgba(229,168,35,.3); border-radius: var(--r-sm); padding: 13px 15px; font-size: 13px; color: #7A5000; margin-top: 14px; line-height: 1.6; }
+
+    /* Simplifier */
+    .style-pill { padding: 7px 14px; border-radius: 20px; font-size: 12.5px; border: 1.5px solid var(--gray-200); background: #fff; cursor: pointer; transition: all .14s; font-family: 'DM Sans', sans-serif; color: var(--gray-600); }
+    .style-pill:hover { border-color: var(--blue); color: var(--blue); }
+    .style-pill.on { background: var(--blue); border-color: var(--blue); color: #fff; }
+    .takeaway { display: flex; gap: 8px; margin-bottom: 8px; }
+    .tkdot { width: 6px; height: 6px; background: var(--gold); border-radius: 50%; margin-top: 7px; flex-shrink: 0; }
+
+    /* Chat */
+    .chat-wrap { display: flex; flex-direction: column; height: calc(100vh - 170px); }
+    .chat-msgs { flex: 1; overflow-y: auto; padding: 18px; display: flex; flex-direction: column; gap: 11px; }
+    .msg { max-width: 78%; padding: 11px 15px; font-size: 13.5px; line-height: 1.65; white-space: pre-wrap; }
+    .msg.user { background: var(--blue); color: #fff; align-self: flex-end; border-radius: 16px 16px 4px 16px; }
+    .msg.assistant { background: #fff; color: var(--gray-800); align-self: flex-start; border-radius: 16px 16px 16px 4px; border: 1px solid var(--gray-100); box-shadow: var(--shadow-xs); }
+    .typing-bubble { align-self: flex-start; display: flex; gap: 4px; padding: 11px 15px; background: #fff; border-radius: 16px 16px 16px 4px; border: 1px solid var(--gray-100); box-shadow: var(--shadow-xs); }
+    .typing-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--blue); animation: bounce 1s ease-in-out infinite; }
+    @keyframes bounce { 0%,60%,100% { transform: translateY(0); } 30% { transform: translateY(-6px); } }
+    .chat-bar { padding: 14px 18px; border-top: 1px solid var(--gray-100); display: flex; gap: 10px; background: #fff; }
+    .chat-inp { flex: 1; padding: 9px 15px; border: 1.5px solid var(--gray-200); border-radius: 24px; font-family: 'DM Sans', sans-serif; font-size: 13.5px; outline: none; transition: border-color .14s; }
+    .chat-inp:focus { border-color: var(--blue); }
+    .chat-send { width: 38px; height: 38px; background: var(--blue); border: none; border-radius: 50%; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 15px; transition: background .14s; flex-shrink: 0; }
+    .chat-send:hover { background: var(--blue-dark); }
+    .chat-send:disabled { opacity: .45; cursor: not-allowed; }
+
+    /* Utilities */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    .flex { display: flex; }
+    .aic  { align-items: center; }
+    .jcb  { justify-content: space-between; }
+    .gap2 { gap: 8px; }
+    .gap3 { gap: 12px; }
+    .mb2  { margin-bottom: 8px; }
+    .mb3  { margin-bottom: 12px; }
+    .mb4  { margin-bottom: 16px; }
+    .mb5  { margin-bottom: 20px; }
+    .mb6  { margin-bottom: 24px; }
+    .empty { text-align: center; padding: 56px 20px; }
+    .empty-ico  { font-size: 44px; margin-bottom: 12px; }
+    .empty-head { font-size: 15px; font-weight: 500; color: var(--gray-600); margin-bottom: 6px; }
+    .empty-body { font-size: 13px; color: var(--gray-400); }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--gray-200); border-radius: 2px; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .fade-in { animation: fadeUp .28s ease forwards; }
+    .score-ring { width: 130px; height: 130px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 22px; position: relative; }
+    .score-ring-inner { position: absolute; inset: 11px; background: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-direction: column; z-index: 1; }
+    .score-num { font-family: 'Playfair Display', serif; font-size: 26px; color: var(--blue); font-weight: 700; }
+    .score-lbl { font-size: 11px; color: var(--gray-400); }
+
+    /* Modal */
+    .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; z-index: 200; backdrop-filter: blur(4px); }
+    .modal { background: #fff; border-radius: var(--r-lg); padding: 28px; max-width: 480px; width: 94%; box-shadow: var(--shadow-lg); max-height: 90vh; overflow-y: auto; }
+    .modal-title { font-family: 'Playfair Display', serif; font-size: 20px; color: var(--gray-800); margin-bottom: 16px; }
+
+    /* FAQ */
+    .faq-item { border: 1px solid var(--gray-100); border-radius: var(--r); margin-bottom: 8px; overflow: hidden; background: #fff; }
+    .faq-q { padding: 14px 16px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 12px; transition: background .13s; font-size: 14px; font-weight: 500; }
+    .faq-q:hover { background: var(--gray-50); }
+    .faq-a { padding: 12px 16px 14px; font-size: 13.5px; color: var(--gray-600); line-height: 1.7; border-top: 1px solid var(--gray-100); }
+    .faq-chevron { font-size: 11px; color: var(--gray-400); transition: transform .2s; flex-shrink: 0; }
+    .faq-chevron.open { transform: rotate(180deg); }
+    .topic-pill { padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 500; border: 1.5px solid var(--gray-200); background: #fff; cursor: pointer; color: var(--gray-600); transition: all .14s; font-family: 'DM Sans', sans-serif; }
+    .topic-pill:hover { border-color: var(--blue); color: var(--blue); }
+    .topic-pill.on { background: var(--blue); border-color: var(--blue); color: #fff; }
+    .faq-search { width: 100%; padding: 10px 13px; border: 1.5px solid var(--gray-200); border-radius: var(--r-sm); font-family: 'DM Sans', sans-serif; font-size: 13.5px; outline: none; transition: border-color .14s; background: #fff; }
+    .faq-search:focus { border-color: var(--blue); }
+
+    /* Planner */
+    .task-card { border: 1.5px solid var(--gray-100); border-radius: var(--r); padding: 15px 16px; margin-bottom: 10px; background: #fff; transition: all .14s; }
+    .task-card.urgent { border-left: 3px solid var(--danger); }
+    .task-card.soon   { border-left: 3px solid var(--warning); }
+    .task-card.done-task { opacity: .5; }
+    .task-check { width: 20px; height: 20px; border-radius: 5px; border: 2px solid var(--gray-200); cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all .14s; font-size: 11px; }
+    .task-check.checked { background: var(--success); border-color: var(--success); color: #fff; }
+    .task-check:hover:not(.checked) { border-color: var(--blue); }
+    .filter-tab { padding: 7px 16px; border-radius: 20px; font-size: 13px; font-weight: 500; cursor: pointer; border: 1.5px solid var(--gray-200); background: #fff; color: var(--gray-600); transition: all .14s; font-family: 'DM Sans', sans-serif; }
+    .filter-tab:hover { border-color: var(--blue); color: var(--blue); }
+    .filter-tab.on { background: var(--blue); border-color: var(--blue); color: #fff; }
+    .readiness-card { background: linear-gradient(135deg, var(--blue), var(--blue-dark)); border-radius: var(--r); padding: 18px; color: #fff; }
+
+    /* Timer */
+    .timer-ring-wrap { position: relative; width: 200px; height: 200px; margin: 0 auto 20px; }
+    .timer-ring-svg  { transform: rotate(-90deg); }
+    .timer-ring-bg   { fill: none; stroke: var(--gray-100); stroke-width: 10; }
+    .timer-ring-prog { fill: none; stroke-width: 10; stroke-linecap: round; transition: stroke-dashoffset .8s ease, stroke .3s; }
+    .timer-ring-text { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .timer-digits { font-family: 'Playfair Display', serif; font-size: 40px; font-weight: 700; color: var(--gray-800); line-height: 1; }
+    .timer-phase-lbl { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .1em; margin-top: 5px; }
+    .timer-btn-row { display: flex; justify-content: center; align-items: center; gap: 14px; margin-bottom: 20px; }
+    .tctrl { border: none; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all .14s; }
+    .tctrl-sm { width: 44px; height: 44px; font-size: 16px; background: var(--gray-100); color: var(--gray-600); }
+    .tctrl-sm:hover { background: var(--gray-200); }
+    .tctrl-lg { width: 60px; height: 60px; font-size: 22px; background: var(--blue); color: #fff; }
+    .tctrl-lg:hover { background: var(--blue-dark); }
+    .preset-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 18px; }
+    .preset-btn { padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 500; border: 1.5px solid var(--gray-200); background: #fff; cursor: pointer; color: var(--gray-600); transition: all .14s; font-family: 'DM Sans', sans-serif; }
+    .preset-btn:hover { border-color: var(--blue); color: var(--blue); }
+    .preset-btn.on { background: var(--blue); border-color: var(--blue); color: #fff; }
+    .session-log { max-height: 200px; overflow-y: auto; }
+    .slog-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-radius: var(--r-sm); margin-bottom: 4px; }
+    .slog-row:nth-child(odd) { background: var(--gray-50); }
+
+    /* Notes */
+    .note-card { border: 1.5px solid var(--gray-100); border-radius: var(--r); padding: 18px; margin-bottom: 12px; background: #fff; cursor: pointer; transition: all .14s; }
+    .note-card:hover { border-color: var(--blue); box-shadow: var(--shadow-sm); }
+    .note-content { font-size: 13.5px; color: var(--gray-600); line-height: 1.65; white-space: pre-wrap; }
+    .note-preview { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+    /* Setup panels */
+    .setup-panel { background: #fff; border: 1.5px solid var(--gray-100); border-radius: var(--r); padding: 22px; margin-bottom: 20px; }
+    .setup-label { font-size: 12.5px; font-weight: 600; color: var(--gray-600); margin-bottom: 8px; display: block; }
+    .setup-row { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .count-input { width: 80px; padding: 8px 12px; border: 1.5px solid var(--gray-200); border-radius: var(--r-sm); font-family: 'DM Sans', sans-serif; font-size: 14px; text-align: center; outline: none; }
+    .count-input:focus { border-color: var(--blue); }
+    .quick-count { padding: 5px 12px; border-radius: 16px; font-size: 12px; border: 1.5px solid var(--gray-200); background: #fff; cursor: pointer; color: var(--gray-600); transition: all .14s; font-family: 'DM Sans', sans-serif; }
+    .quick-count:hover { border-color: var(--blue); color: var(--blue); }
+    .quick-count.on { background: var(--blue); border-color: var(--blue); color: #fff; }
+    .file-check { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border: 1.5px solid var(--gray-200); border-radius: var(--r-sm); cursor: pointer; transition: all .14s; margin-bottom: 6px; font-size: 13px; }
+    .file-check:hover { border-color: var(--blue); }
+    .file-check.on { border-color: var(--blue); background: rgba(0,85,162,.05); }
+    .file-check-box { width: 16px; height: 16px; border: 2px solid var(--gray-200); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 10px; transition: all .14s; flex-shrink: 0; }
+    .file-check.on .file-check-box { background: var(--blue); border-color: var(--blue); color: #fff; }
+
+    /* Toast */
+    .toast { position: fixed; bottom: 24px; right: 24px; background: var(--gray-800); color: #fff; padding: 12px 20px; border-radius: var(--r-sm); font-size: 13px; box-shadow: var(--shadow-lg); z-index: 300; animation: fadeUp .28s ease; }
+    .toast-success { background: #15803d; }
+    .toast-error { background: #b91c1c; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+const MAX_CTX = 20000;
+
+// ══════════════════════════════════════════════════════════════
+// TOAST NOTIFICATION
+// ══════════════════════════════════════════════════════════════
+function Toast({ message, type, onClose }) {
+  useEffect(() => {
+    const t = setTimeout(onClose, 3000);
+    return () => clearTimeout(t);
+  }, []);
+  return <div className={`toast ${type === 'success' ? 'toast-success' : type === 'error' ? 'toast-error' : ''}`}>{message}</div>;
+}
+
+// ══════════════════════════════════════════════════════════════
+// FILE PARSERS (client-side)
+// ══════════════════════════════════════════════════════════════
+async function parsePDF(file) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  let out = '';
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page    = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    out += content.items.map(x => x.str).join(' ') + '\n';
+  }
+  return out.trim() || 'Could not extract text from PDF.';
+}
+
+async function parseDOCX(file) {
+  const buf = await file.arrayBuffer();
+  const res = await mammoth.extractRawText({ arrayBuffer: buf });
+  return res.value.trim() || 'Could not extract text from DOCX.';
+}
+
+async function parsePPTX(file) {
+  const buf  = await file.arrayBuffer();
+  const zip  = await JSZip.loadAsync(buf);
+  const keys = Object.keys(zip.files)
+    .filter(n => /ppt\/slides\/slide\d+\.xml$/.test(n))
+    .sort((a, b) => {
+      const na = parseInt(a.match(/slide(\d+)/)[1]);
+      const nb = parseInt(b.match(/slide(\d+)/)[1]);
+      return na - nb;
+    });
+  let out = '';
+  for (const name of keys) {
+    const xml     = await zip.files[name].async('string');
+    const matches = xml.match(/<a:t[^>]*?>([^<]+)<\/a:t>/g) || [];
+    const text    = matches.map(m => m.replace(/<[^>]*>/g, '')).join(' ').trim();
+    if (text) out += `[Slide] ${text}\n\n`;
+  }
+  return out.trim() || 'Could not extract text from PPTX.';
+}
+
+// ══════════════════════════════════════════════════════════════
+// SAFE JSON PARSE
+// ══════════════════════════════════════════════════════════════
+function safeJSON(raw) {
+  try { return JSON.parse(raw); } catch(e) {}
+  const m = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (m) try { return JSON.parse(m[1]); } catch(e) {}
+  const first = raw.indexOf('{'); const last = raw.lastIndexOf('}');
+  if (first !== -1 && last > first) try { return JSON.parse(raw.slice(first, last+1)); } catch(e) {}
+  throw new Error('Failed to parse AI response. Please try again.');
+}
+
+// ══════════════════════════════════════════════════════════════
+// API CALL
+// ══════════════════════════════════════════════════════════════
+async function callGPT(messages, jsonMode) {
+  let res;
+  try {
+    res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages, json_mode: jsonMode }),
+    });
+  } catch(e) {
+    throw new Error('Cannot connect to the backend server. Make sure the Express server is running: node server.js');
+  }
+  const text = await res.text();
+  if (text.trimStart().startsWith('<')) {
+    throw new Error('Backend server not found. Start the Express server: node server.js');
+  }
+  let data;
+  try { data = JSON.parse(text); } catch(e) {
+    throw new Error('Invalid response from server. Ensure the Express backend is running.');
+  }
+  if (!res.ok) throw new Error(data.error || 'Server error ' + res.status);
+  return data.content;
+}
+
+// ══════════════════════════════════════════════════════════════
+// SIDEBAR
+// ══════════════════════════════════════════════════════════════
+function Sidebar({ page, go, files, onUpload, onRemove }) {
+  const inputRef = useRef();
+  const [drag, setDrag] = useState(false);
+
+  const handle = async (list) => {
+    for (const f of Array.from(list)) {
+      if (f.name.match(/\.(pdf|docx|pptx)$/i)) onUpload(f);
+    }
+  };
+
+  const ico = n => n.endsWith('.pdf') ? '📄' : n.endsWith('.docx') ? '📃' : '📊';
+
+  const nav = [
+    { id:'dashboard',  icon:'⊞', label:'Dashboard'     },
+    { id:'flashcards', icon:'🃏', label:'Flashcards'    },
+    { id:'quiz',       icon:'📝', label:'Quiz'          },
+    { id:'simplifier', icon:'✨', label:'Simplifier'    },
+    { id:'tutor',      icon:'🎓', label:'AI Tutor'      },
+    { id:'faq',        icon:'❓', label:'FAQ Matrix'    },
+    { id:'notes',      icon:'📓', label:'Notes'         },
+    { id:'planner',    icon:'📅', label:'Study Planner' },
+    { id:'timer',      icon:'⏱', label:'Study Timer'   },
+  ];
+
+  return (
+    <div className="sidebar">
+      <div className="sidebar-brand">
+        <div className="brand-badge">SP</div>
+        <div>
+          <div className="brand-title">Spartan Prep</div>
+          <div className="brand-sub">AI Exam Assistant</div>
+        </div>
+      </div>
+
+      <nav className="sidebar-nav">
+        <div className="nav-section-label">Menu</div>
+        {nav.map(n => (
+          <div key={n.id} className={`nav-item ${page===n.id?'active':''}`} onClick={() => go(n.id)}>
+            <span className="nav-icon">{n.icon}</span>{n.label}
+          </div>
+        ))}
+      </nav>
+
+      <div className="sidebar-files">
+        <div className="files-label">Course Materials</div>
+        <div className={`upload-drop ${drag?'drag':''}`}
+          onClick={() => inputRef.current?.click()}
+          onDragOver={e => { e.preventDefault(); setDrag(true); }}
+          onDragLeave={() => setDrag(false)}
+          onDrop={e => { e.preventDefault(); setDrag(false); handle(e.dataTransfer.files); }}>
+          <div className="upload-drop-icon">📁</div>
+          <div className="upload-drop-text">Drop files or click</div>
+          <div className="upload-drop-hint">PDF · DOCX · PPTX</div>
+        </div>
+        <input ref={inputRef} type="file" multiple accept=".pdf,.docx,.pptx" style={{display:'none'}}
+          onChange={e => { handle(e.target.files); e.target.value = ''; }} />
+        {files.map((f, i) => (
+          <div key={i} className="file-row">
+            <span className="file-ico">{ico(f.name)}</span>
+            <span className="file-nm" title={f.name}>{f.name.length>22 ? f.name.slice(0,22)+'…' : f.name}</span>
+            <span className="file-x" onClick={() => onRemove(i)}>×</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="sidebar-user">
+        <div className="user-avi">👤</div>
+        <div>
+          <div className="user-name">SJSU Student</div>
+          <div className="user-status">● Connected</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════
+// DASHBOARD
+// ══════════════════════════════════════════════════════════════
+function Dashboard({ files, flashcards, scores, tasks, notes, go }) {
+  const mastered = flashcards.filter(c => c.mastered).length;
+  const best     = scores.length ? Math.max(...scores) : 0;
+  const pending  = (tasks||[]).filter(t => !t.done).length;
+
+  return (
+    <div className="fade-in">
+      <div style={{background:'linear-gradient(135deg,var(--blue) 0%,var(--blue-dark) 100%)',borderRadius:'var(--r-lg)',padding:'26px 28px',marginBottom:'22px',color:'#fff'}}>
+        <div className="flex aic jcb">
+          <div>
+            <div style={{fontSize:'11px',color:'var(--gold)',fontWeight:'700',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'7px'}}>✦ Ready for SJSU success</div>
+            <h2 style={{fontFamily:'Playfair Display,serif',fontSize:'27px',marginBottom:'7px'}}>Spartan Study</h2>
+            <p style={{opacity:.65,fontSize:'13px'}}>
+              {files.length===0 ? 'Upload course materials from the sidebar to begin' : files.length + ' file' + (files.length!==1?'s':'') + ' loaded · GPT-4o ready'}
+            </p>
+          </div>
+          <div style={{fontSize:'72px',opacity:.18}}>🎓</div>
+        </div>
+      </div>
+
+      <div className="grid-4 mb6" style={{gridTemplateColumns:'repeat(5,1fr)'}}>
+        {[
+          {lbl:'Files Loaded',    val:files.length,                    ico:'📁', clr:'var(--blue)'   },
+          {lbl:'Flashcards',      val:flashcards.length,               ico:'🃏', clr:'#8B5CF6'       },
+          {lbl:'Tasks Pending',   val:pending,                         ico:'📅', clr:'var(--warning)'},
+          {lbl:'Best Quiz Score', val:scores.length ? best+'%' : '—', ico:'🏆', clr:'var(--gold)'   },
+          {lbl:'Notes',           val:(notes||[]).length,              ico:'📓', clr:'var(--success)'},
+        ].map((s,i) => (
+          <div key={i} className="card">
+            <div style={{fontSize:'22px',marginBottom:'8px'}}>{s.ico}</div>
+            <div style={{fontFamily:'Playfair Display,serif',fontSize:'28px',color:s.clr}}>{s.val}</div>
+            <div style={{fontSize:'12px',color:'var(--gray-400)',marginTop:'3px'}}>{s.lbl}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid-2">
+        <div className="card">
+          <div className="card-title">Quick Actions</div>
+          <div className="card-sub">Jump into your study session</div>
+          {[
+            {p:'flashcards',ico:'🃏',h:'Generate Flashcards', d:'Active recall from your notes'},
+            {p:'quiz',      ico:'📝',h:'Take a Quiz',           d:'AI exam simulator with custom options'},
+            {p:'simplifier',ico:'✨',h:'Simplify a Concept',    d:'Break down complex jargon'},
+            {p:'tutor',     ico:'🎓',h:'Ask the Tutor',         d:'Chat with GPT-4o about your material'},
+            {p:'faq',       ico:'❓',h:'FAQ Matrix',            d:'Auto-extract key Q&A from materials'},
+            {p:'notes',     ico:'📓',h:'Notes',                 d:'Create and organize study notes'},
+            {p:'planner',   ico:'📅',h:'Study Planner',         d:'Track tasks and exam deadlines'},
+            {p:'timer',     ico:'⏱',h:'Study Timer',           d:'Pomodoro focus sessions'},
+          ].map((a,i) => (
+            <div key={i} onClick={() => go(a.p)}
+              style={{display:'flex',alignItems:'center',gap:'12px',padding:'10px 8px',borderRadius:'var(--r-sm)',cursor:'pointer',transition:'background .13s'}}
+              onMouseEnter={e => e.currentTarget.style.background='var(--gray-50)'}
+              onMouseLeave={e => e.currentTarget.style.background='transparent'}>
+              <div style={{width:'38px',height:'38px',background:'var(--gray-50)',borderRadius:'10px',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'18px',flexShrink:0}}>{a.ico}</div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:'13.5px',fontWeight:'500'}}>{a.h}</div>
+                <div style={{fontSize:'12px',color:'var(--gray-400)'}}>{a.d}</div>
+              </div>
+              <div style={{color:'var(--gray-400)'}}>›</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="card">
+          <div className="card-title">Study Progress</div>
+          <div className="card-sub">Your mastery overview</div>
+          {flashcards.length > 0 ? (
+            <div>
+              <div className="flex aic jcb mb3"><span style={{fontSize:'13px',color:'var(--gray-600)'}}>Flashcard Mastery</span><span style={{fontSize:'13px',fontWeight:'600',color:'var(--blue)'}}>{mastered}/{flashcards.length}</span></div>
+              <div className="progress mb5"><div className="progress-fill" style={{width:(mastered/flashcards.length)*100+'%'}} /></div>
+              {scores.length > 0 && <>
+                <div className="flex aic jcb mb3"><span style={{fontSize:'13px',color:'var(--gray-600)'}}>Best Quiz Score</span><span style={{fontSize:'13px',fontWeight:'600',color:'var(--gold)'}}>{best}%</span></div>
+                <div className="progress"><div className="progress-fill" style={{width:best+'%'}} /></div>
+              </>}
+            </div>
+          ) : (
+            <div className="empty" style={{padding:'24px 0'}}>
+              <div style={{fontSize:'32px',marginBottom:'8px'}}>📊</div>
+              <p style={{fontSize:'13px',color:'var(--gray-400)'}}>Upload materials and generate flashcards to track progress</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════
+// FLASHCARDS (Enhanced: count 1-100, type selection)
+// ══════════════════════════════════════════════════════════════
+function Flashcards({ ctx, files, cards, setCards }) {
+  const [loading, setLoading] = useState(false);
+  const [idx, setIdx] = useState(0);
+  const [flipped, setFlipped] = useState(false);
+  const [err, setErr] = useState('');
+  const [count, setCount] = useState(20);
+  const [fcType, setFcType] = useState('mixed');
+
+  const typeLabels = [
+    {id:'terms', lbl:'📖 Terms & Definitions'},
+    {id:'concepts', lbl:'💡 Concepts'},
+    {id:'questions', lbl:'❓ Practice Questions'},
+    {id:'mixed', lbl:'🔀 Mixed'},
+  ];
+  const typeInst = {
+    terms: 'Focus on key vocabulary terms and their precise definitions.',
+    concepts: 'Focus on important concepts, theories, and frameworks with clear explanations.',
+    questions: 'Create question-and-answer pairs. Front=question, Back=detailed answer.',
+    mixed: 'Create a balanced mix of terms/definitions, concept explanations, and Q&A.',
+  };
+
+  const generate = async () => {
+    if (!ctx) return;
+    setLoading(true); setErr('');
+    const n = Math.max(1, Math.min(100, count));
+    try {
+      const raw = await callGPT([
+        {role:'system', content:'You are an expert SJSU professor. Create high-yield exam flashcards. '+typeInst[fcType]+' Return ONLY valid JSON: {"flashcards":[{"front":"...","back":"..."}]}. Generate exactly '+n+' cards focused on exam-essential content.'},
+        {role:'user', content:'Create '+n+' flashcards from this material:\n\n'+ctx.slice(0,MAX_CTX)},
+      ], true);
+      const data = safeJSON(raw);
+      if (!data.flashcards||!Array.isArray(data.flashcards)) throw new Error('Invalid response format');
+      setCards(data.flashcards.map(c => ({...c, mastered:false})));
+      setIdx(0); setFlipped(false);
+    } catch(e) { setErr(e.message); }
+    setLoading(false);
+  };
+
+  const mark = (val) => {
+    setCards(prev => prev.map((c,i) => i===idx ? {...c, mastered:val} : c));
+    setFlipped(false);
+    if (val && idx < cards.length-1) setTimeout(() => setIdx(i => i+1), 200);
+  };
+
+  const card = cards[idx];
+  const mastered = cards.filter(c => c.mastered).length;
+
+  return (
+    <div className="fade-in">
+      <div className="flex aic jcb mb6">
+        <div>
+          <h2 style={{fontFamily:'Playfair Display,serif',fontSize:'23px'}}>Flashcard Deck</h2>
+          <p style={{color:'var(--gray-400)',fontSize:'12.5px'}}>Active recall for deep exam preparation</p>
+        </div>
+        <button className="btn btn-primary" onClick={generate} disabled={!ctx||loading}>
+          {loading ? <><div className="spin"/>Generating…</> : '🃏 Generate Cards'}
+        </button>
+      </div>
+      {err && <div className="alert alert-warn">⚠️ {err}</div>}
+      {!ctx && <div className="alert alert-info">📁 Upload course materials from the sidebar first.</div>}
+      {ctx && (
+        <div className="setup-panel mb5">
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'20px'}}>
+            <div>
+              <div className="setup-label">Number of Flashcards (1–100)</div>
+              <div className="flex aic gap2" style={{flexWrap:'wrap'}}>
+                <input type="number" className="count-input" min="1" max="100" value={count} onChange={e => setCount(Math.max(1,Math.min(100,parseInt(e.target.value)||1)))}/>
+                {[10,20,30,50].map(n => <button key={n} className={'quick-count'+(count===n?' on':'')} onClick={() => setCount(n)}>{n}</button>)}
+              </div>
+            </div>
+            <div>
+              <div className="setup-label">Flashcard Type</div>
+              <div style={{display:'flex',flexWrap:'wrap',gap:'7px'}}>
+                {typeLabels.map(t => <button key={t.id} className={'style-pill'+(fcType===t.id?' on':'')} onClick={() => setFcType(t.id)}>{t.lbl}</button>)}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {loading && (
+        <div className="card" style={{textAlign:'center',padding:'60px'}}>
+          <div className="spin spin-blue" style={{margin:'0 auto 14px'}}/>
+          <p style={{color:'var(--gray-400)',fontSize:'13px'}}>Professor GPT-4o is building your {count}-card study deck…</p>
+        </div>
+      )}
+      {cards.length > 0 && !loading && (
+        <>
+          <div className="flex aic jcb mb3">
+            <span style={{fontSize:'13px',color:'var(--gray-600)'}}>Mastery Progress</span>
+            <span style={{fontSize:'13px',fontWeight:'600'}}>{mastered}/{cards.length} mastered</span>
+          </div>
+          <div className="progress mb5"><div className="progress-fill" style={{width:(mastered/cards.length)*100+'%'}}/></div>
+          <div className="fc-dots">
+            {cards.map((c,i) => <div key={i} className="fc-dot" onClick={() => {setIdx(i);setFlipped(false);}} style={{background:i===idx?'var(--blue)':c.mastered?'var(--success)':'var(--gray-200)'}}/>)}
+          </div>
+          <div className="fc-wrap" onClick={() => setFlipped(f => !f)}>
+            <div className={'fc'+(flipped?' flipped':'')}>
+              <div className="fc-face fc-front">
+                <div className="fc-label">✦ {fcType==='questions'?'Question':'Term'}</div>
+                <div className="fc-text">{card.front}</div>
+                <div className="fc-hint">Click card to reveal answer</div>
+              </div>
+              <div className="fc-face fc-back">
+                <div className="fc-label">{fcType==='questions'?'Answer':'Definition'}</div>
+                <div className="fc-text" style={{fontSize:'16px'}}>{card.back}</div>
+                {card.mastered && <span className="badge badge-green" style={{marginTop:'14px'}}>✓ Mastered</span>}
+              </div>
+            </div>
+          </div>
+          <div className="mastery-row">
+            <button className="m-btn still" onClick={() => mark(false)}>✗ Still Learning</button>
+            <button className="m-btn got" onClick={() => mark(true)}>✓ Got It!</button>
+          </div>
+          <div className="fc-nav" style={{marginTop:'12px'}}>
+            <button className="btn btn-outline btn-sm" onClick={() => {setIdx(i=>Math.max(0,i-1));setFlipped(false);}} disabled={idx===0}>← Prev</button>
+            <span style={{fontSize:'13px',color:'var(--gray-400)'}}>{idx+1} / {cards.length}</span>
+            <button className="btn btn-outline btn-sm" onClick={() => {setIdx(i=>Math.min(cards.length-1,i+1));setFlipped(false);}} disabled={idx===cards.length-1}>Next →</button>
+          </div>
+        </>
+      )}
+      {cards.length===0 && !loading && (
+        <div className="card empty">
+          <div className="empty-ico">🃏</div>
+          <div className="empty-head">No flashcards yet</div>
+          <div className="empty-body">Upload course materials, configure options above, and hit "Generate Cards"</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════
+// QUIZ (Enhanced: question count, material selector, topic focus, custom timer)
+// ══════════════════════════════════════════════════════════════
+function Quiz({ ctx, files, onScore }) {
+  const [loading, setLoading] = useState(false);
+  const [mode, setMode] = useState('study');
+  const [qs, setQs] = useState([]);
+  const [qIdx, setQIdx] = useState(0);
+  const [sel, setSel] = useState(null);
+  const [shown, setShown] = useState(false);
+  const [score, setScore] = useState(0);
+  const [done, setDone] = useState(false);
+  const [tLeft, setTLeft] = useState(600);
+  const [tActive, setTActive] = useState(false);
+  const [answers, setAnswers] = useState([]);
+  const [err, setErr] = useState('');
+  const [qCount, setQCount] = useState(10);
+  const [timerMin, setTimerMin] = useState(10);
+  const [selFiles, setSelFiles] = useState([]);
+  const [topicFocus, setTopicFocus] = useState('');
+
+  useEffect(() => {
+    if (!tActive||done) return;
+    const t = setInterval(() => setTLeft(s => {
+      if (s<=1) {clearInterval(t);setDone(true);setTActive(false);return 0;}
+      return s-1;
+    }), 1000);
+    return () => clearInterval(t);
+  }, [tActive, done]);
+
+  const toggleFile = idx => setSelFiles(p => p.includes(idx)?p.filter(i=>i!==idx):[...p,idx]);
+  const getCtx = () => {
+    if (selFiles.length===0||files.length<=1) return ctx;
+    return selFiles.map(i => files[i]?.text||'').join('\n\n');
+  };
+
+  const generate = async () => {
+    const qCtx = getCtx();
+    if (!qCtx) return;
+    setLoading(true);setErr('');setDone(false);setQIdx(0);setSel(null);setShown(false);setScore(0);setAnswers([]);
+    const n = Math.max(5,Math.min(50,qCount));
+    const topicInst = topicFocus.trim() ? ' Focus specifically on: '+topicFocus.trim()+'.' : '';
+    try {
+      const raw = await callGPT([
+        {role:'system', content:'You are an expert SJSU professor. Create a rigorous '+n+'-question multiple-choice exam.'+topicInst+' Return ONLY valid JSON: {"questions":[{"question":"...","options":["A","B","C","D"],"correct":0,"explanation":"..."}]}. "correct" is 0-based index.'},
+        {role:'user', content:'Create '+n+' MCQ questions from:\n\n'+qCtx.slice(0,MAX_CTX)},
+      ], true);
+      const data = safeJSON(raw);
+      if (!data.questions||!Array.isArray(data.questions)) throw new Error('Invalid response format');
+      setQs(data.questions);
+      if (mode==='timed') {const secs=Math.max(60,timerMin*60);setTLeft(secs);setTActive(true);}
+    } catch(e) {setErr(e.message);}
+    setLoading(false);
+  };
+
+  const handleSelect = i => {
+    if (shown) return;
+    setSel(i);
+    if (mode==='study') {
+      setShown(true);
+      if (i===qs[qIdx].correct) setScore(s=>s+1);
+      setAnswers(a=>[...a,{sel:i,correct:qs[qIdx].correct}]);
+    }
+  };
+
+  const next = () => {
+    if (mode==='timed'&&sel!==null) {
+      if (sel===qs[qIdx].correct) setScore(s=>s+1);
+      setAnswers(a=>[...a,{sel,correct:qs[qIdx].correct}]);
+    }
+    if (qIdx===qs.length-1) {
+      const fs = mode==='timed' ? score+(sel===qs[qIdx].correct?1:0) : score;
+      setDone(true);setTActive(false);onScore(Math.round((fs/qs.length)*100));
+    } else {setQIdx(q=>q+1);setSel(null);setShown(false);}
+  };
+
+  const q = qs[qIdx];
+
+  if (done && qs.length>0) {
+    const fp = Math.round((score/qs.length)*100);
+    return (
+      <div className="fade-in" style={{maxWidth:'640px'}}>
+        <div className="card" style={{textAlign:'center',padding:'32px'}}>
+          <div style={{fontSize:'38px',marginBottom:'8px'}}>🏆</div>
+          <h2 style={{fontFamily:'Playfair Display,serif',fontSize:'25px',marginBottom:'4px'}}>Quiz Complete!</h2>
+          <p style={{color:'var(--gray-400)',fontSize:'13px',marginBottom:'24px'}}>Here's your performance breakdown</p>
+          <div className="score-ring" style={{background:'conic-gradient(var(--gold) '+fp+'%, var(--gray-100) 0)'}}>
+            <div className="score-ring-inner"><div className="score-num">{fp}%</div><div className="score-lbl">{score}/{qs.length} correct</div></div>
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'12px',marginBottom:'24px'}}>
+            {[['✓ Correct',score,'var(--success)'],['✗ Wrong',qs.length-score,'var(--danger)'],['Score',fp+'%','var(--gold)']].map(([l,v,c],i) => (
+              <div key={i} style={{background:'var(--gray-50)',borderRadius:'var(--r-sm)',padding:'14px'}}>
+                <div style={{fontSize:'22px',fontWeight:'700',color:c}}>{v}</div>
+                <div style={{fontSize:'12px',color:'var(--gray-400)'}}>{l}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{textAlign:'left',marginBottom:'20px'}}>
+            <div style={{fontSize:'12.5px',fontWeight:'600',color:'var(--gray-600)',marginBottom:'10px'}}>Review Answers</div>
+            {qs.map((q,i) => {
+              const ans=answers[i];const ok=ans?.sel===q.correct;
+              return (
+                <div key={i} style={{padding:'11px',borderRadius:'var(--r-sm)',marginBottom:'8px',background:ok?'rgba(34,197,94,.06)':'rgba(239,68,68,.06)',border:'1px solid '+(ok?'rgba(34,197,94,.2)':'rgba(239,68,68,.2)')}}>
+                  <div style={{display:'flex',gap:'7px',marginBottom:'4px'}}>
+                    <span style={{color:ok?'var(--success)':'var(--danger)',fontWeight:'700'}}>{ok?'✓':'✗'}</span>
+                    <span style={{fontSize:'13px',fontWeight:'500'}}>{q.question}</span>
+                  </div>
+                  {!ok&&ans&&<div style={{fontSize:'12px',color:'var(--gray-400)',paddingLeft:'18px'}}>Your answer: <span style={{color:'var(--danger)'}}>{q.options[ans.sel]}</span> · Correct: <span style={{color:'var(--success)'}}>{q.options[q.correct]}</span></div>}
+                  {q.explanation&&<div className="explain-box" style={{marginTop:'7px',fontSize:'12px'}}>📝 {q.explanation}</div>}
+                </div>
+              );
+            })}
+          </div>
+          <button className="btn btn-primary" style={{width:'100%',justifyContent:'center'}} onClick={generate}>📝 Retake Quiz</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fade-in">
+      <div className="flex aic jcb mb6">
+        <div>
+          <h2 style={{fontFamily:'Playfair Display,serif',fontSize:'23px'}}>Spartan Quiz</h2>
+          <p style={{color:'var(--gray-400)',fontSize:'12.5px'}}>AI-generated exam simulator</p>
+        </div>
+        <div className="flex gap2">
+          <button className={'btn '+(mode==='study'?'btn-primary':'btn-outline')} onClick={() => setMode('study')}>📚 Study Mode</button>
+          <button className={'btn '+(mode==='timed'?'btn-primary':'btn-outline')} onClick={() => setMode('timed')}>⏱ Timed Mode</button>
+          <button className="btn btn-gold" onClick={generate} disabled={!ctx||loading}>
+            {loading ? <><div className="spin" style={{borderColor:'rgba(0,0,0,.2)',borderTopColor:'var(--blue-dark)'}}/>Generating…</> : '📝 New Quiz'}
+          </button>
+        </div>
+      </div>
+      {err&&<div className="alert alert-warn">⚠️ {err}</div>}
+      {!ctx&&<div className="alert alert-info">📁 Upload course materials to generate quiz questions.</div>}
+      {ctx && qs.length===0 && !loading && (
+        <div className="setup-panel mb5">
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'20px'}}>
+            <div>
+              <div className="setup-label">Number of Questions</div>
+              <div className="flex aic gap2" style={{flexWrap:'wrap'}}>
+                <input type="number" className="count-input" min="5" max="50" value={qCount} onChange={e => setQCount(Math.max(5,Math.min(50,parseInt(e.target.value)||5)))}/>
+                {[5,10,15,20,25].map(n => <button key={n} className={'quick-count'+(qCount===n?' on':'')} onClick={() => setQCount(n)}>{n}</button>)}
+              </div>
+            </div>
+            <div>
+              {mode==='timed' && (
+                <>
+                  <div className="setup-label">Timer Duration (minutes)</div>
+                  <div className="flex aic gap2" style={{flexWrap:'wrap'}}>
+                    <input type="number" className="count-input" min="1" max="180" value={timerMin} onChange={e => setTimerMin(Math.max(1,Math.min(180,parseInt(e.target.value)||1)))}/>
+                    {[5,10,15,30,60].map(n => <button key={n} className={'quick-count'+(timerMin===n?' on':'')} onClick={() => setTimerMin(n)}>{n}m</button>)}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+          {files.length>1 && (
+            <div style={{marginTop:'16px'}}>
+              <div className="setup-label">Quiz from specific materials (optional)</div>
+              {files.map((f,i) => (
+                <div key={i} className={'file-check'+(selFiles.includes(i)?' on':'')} onClick={() => toggleFile(i)}>
+                  <div className="file-check-box">{selFiles.includes(i)?'✓':''}</div>
+                  <span>{f.name}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={{marginTop:'16px'}}>
+            <div className="setup-label">Focus on specific topics (optional)</div>
+            <input className="inp" placeholder="e.g. Chapter 5, Agile methodology, Cloud computing…" value={topicFocus} onChange={e => setTopicFocus(e.target.value)}/>
+          </div>
+        </div>
+      )}
+      {qs.length>0 && !done && (
+        <div style={{maxWidth:'660px'}}>
+          <div className="flex aic jcb mb4">
+            <div className="flex gap2">
+              <span className="badge badge-blue">Q {qIdx+1} / {qs.length}</span>
+              {mode==='study'&&<span className="badge badge-green">Score: {score}</span>}
+            </div>
+            {mode==='timed'&&<div style={{fontSize:'17px',fontWeight:'700',color:tLeft<60?'var(--danger)':'var(--blue)'}}>⏱ {Math.floor(tLeft/60)}:{String(tLeft%60).padStart(2,'0')}</div>}
+          </div>
+          <div className="progress mb5"><div className="progress-fill" style={{width:(qIdx/qs.length)*100+'%'}}/></div>
+          <div className="card mb4">
+            <h3 style={{fontSize:'16px',fontWeight:'500',lineHeight:'1.55',marginBottom:'20px'}}>{q.question}</h3>
+            {q.options.map((opt,i) => {
+              let cls='q-opt';
+              if (shown) {if(i===q.correct) cls+=' right'; else if(i===sel) cls+=' wrong';}
+              else if (i===sel) cls+=' sel';
+              return <button key={i} className={cls} onClick={() => handleSelect(i)} disabled={shown&&mode==='study'}><span style={{fontWeight:'600',marginRight:'10px',color:'var(--gray-400)'}}>{['A','B','C','D'][i]}.</span>{opt}</button>;
+            })}
+            {shown&&mode==='study'&&q.explanation&&<div className="explain-box fade-in">📝 <strong>Professor's Note:</strong> {q.explanation}</div>}
+          </div>
+          {(mode==='timed'||shown)&&<button className="btn btn-primary" onClick={next} disabled={mode==='timed'&&sel===null}>{qIdx===qs.length-1?'🏁 Finish Quiz':'Next Question →'}</button>}
+        </div>
+      )}
+      {loading && (
+        <div className="card" style={{textAlign:'center',padding:'60px'}}>
+          <div className="spin spin-blue" style={{margin:'0 auto 14px'}}/>
+          <p style={{color:'var(--gray-400)',fontSize:'13px'}}>Professor GPT-4o is crafting your {qCount}-question exam…</p>
+        </div>
+      )}
+      {qs.length===0&&!loading&&!ctx&&(
+        <div className="card empty"><div className="empty-ico">📝</div><div className="empty-head">No quiz generated yet</div><div className="empty-body">Upload materials and click "New Quiz" to begin</div></div>
+      )}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════
+// CONCEPT SIMPLIFIER
+// ══════════════════════════════════════════════════════════════
+function Simplifier({ ctx }) {
+  const [input, setInput] = useState('');
+  const [style, setStyle] = useState('plain');
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+  const styles = [
+    {id:'plain',lbl:'📖 Plain English'},{id:'analogy',lbl:'🔗 Use Analogies'},
+    {id:'eli5',lbl:"👶 Explain Like I'm 5"},{id:'technical',lbl:'⚙ Technical & Clear'},
+  ];
+  const inst = {plain:'Use simple, everyday language. No jargon.',analogy:'Build the explanation around a creative real-world analogy.',eli5:"Explain like you're talking to a 5-year-old.",technical:'Be technically precise and academically rigorous while staying clear.'};
+
+  const run = async () => {
+    if (!input.trim()) return;
+    setLoading(true);setErr('');setResult(null);
+    try {
+      const raw = await callGPT([
+        {role:'system',content:'You are an expert SJSU academic tutor. '+inst[style]+' Return ONLY valid JSON: {"simple_explanation":"...","analogy":"...","key_takeaways":["...","...","..."]}'},
+        {role:'user',content:'Explain this concept: '+input+(ctx?'\n\nContext: '+ctx.slice(0,4000):'')},
+      ], true);
+      setResult(safeJSON(raw));
+    } catch(e) {setErr(e.message);}
+    setLoading(false);
+  };
+
+  return (
+    <div className="fade-in">
+      <div className="mb6">
+        <h2 style={{fontFamily:'Playfair Display,serif',fontSize:'23px'}}>Concept Simplifier</h2>
+        <p style={{color:'var(--gray-400)',fontSize:'12.5px'}}>Transform complex SJSU jargon into clear understanding</p>
+      </div>
+      <div className="grid-2">
+        <div className="card">
+          <label style={{fontSize:'12.5px',fontWeight:'600',color:'var(--gray-600)',display:'block',marginBottom:'7px'}}>Complex Concept or Text</label>
+          <textarea className="inp" rows={5} placeholder="Paste a difficult term, definition, or paragraph…" value={input} onChange={e => setInput(e.target.value)}/>
+          <div style={{marginTop:'16px',marginBottom:'14px'}}>
+            <div style={{fontSize:'12.5px',fontWeight:'600',color:'var(--gray-600)',marginBottom:'8px'}}>Simplification Style</div>
+            <div style={{display:'flex',flexWrap:'wrap',gap:'7px'}}>
+              {styles.map(s => <button key={s.id} className={'style-pill'+(style===s.id?' on':'')} onClick={() => setStyle(s.id)}>{s.lbl}</button>)}
+            </div>
+          </div>
+          {err&&<div className="alert alert-warn">⚠️ {err}</div>}
+          <button className="btn btn-gold" style={{width:'100%',justifyContent:'center'}} onClick={run} disabled={!input.trim()||loading}>
+            {loading ? <><div className="spin" style={{borderColor:'rgba(0,0,0,.2)',borderTopColor:'var(--blue-dark)'}}/>Simplifying…</> : '✨ Simplify Now'}
+          </button>
+        </div>
+        <div>
+          {loading&&<div className="card" style={{textAlign:'center',padding:'60px'}}><div className="spin spin-blue" style={{margin:'0 auto 14px'}}/><p style={{color:'var(--gray-400)',fontSize:'13px'}}>GPT-4o is simplifying…</p></div>}
+          {result&&!loading&&(
+            <div className="card fade-in">
+              <div style={{marginBottom:'16px'}}>
+                <div style={{fontSize:'10px',fontWeight:'700',textTransform:'uppercase',letterSpacing:'.1em',color:'var(--gray-400)',marginBottom:'8px'}}>💡 Simple Explanation</div>
+                <p style={{fontSize:'14.5px',lineHeight:'1.7'}}>{result.simple_explanation}</p>
+              </div>
+              {result.analogy&&(
+                <div style={{background:'var(--gold-pale)',borderRadius:'var(--r-sm)',padding:'13px 15px',marginBottom:'16px'}}>
+                  <div style={{fontSize:'10px',fontWeight:'700',textTransform:'uppercase',letterSpacing:'.1em',color:'#92680A',marginBottom:'6px'}}>🔗 The Analogy</div>
+                  <p style={{fontSize:'13.5px',color:'#7A5000',lineHeight:'1.65',fontStyle:'italic'}}>"{result.analogy}"</p>
+                </div>
+              )}
+              {result.key_takeaways&&(
+                <div>
+                  <div style={{fontSize:'10px',fontWeight:'700',textTransform:'uppercase',letterSpacing:'.1em',color:'var(--gray-400)',marginBottom:'10px'}}>⭐ Key Takeaways</div>
+                  {result.key_takeaways.map((t,i) => <div key={i} className="takeaway"><div className="tkdot"/><span style={{fontSize:'13.5px',lineHeight:'1.55'}}>{t}</span></div>)}
+                </div>
+              )}
+            </div>
+          )}
+          {!result&&!loading&&<div className="card empty"><div className="empty-ico">✨</div><div className="empty-head">Ready to simplify</div><div className="empty-body">Enter a concept and choose your style</div></div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════
+// AI TUTOR
+// ══════════════════════════════════════════════════════════════
+function Tutor({ ctx }) {
+  const [msgs, setMsgs] = useState([{role:'assistant',content:ctx?'👋 Hello! I\'ve loaded your course materials. Ask me anything about your content!':'👋 Hello! Upload course materials or ask me anything academic!'}]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+  const endRef = useRef();
+  useEffect(() => {endRef.current?.scrollIntoView({behavior:'smooth'});}, [msgs,loading]);
+  useEffect(() => {
+    setMsgs([{role:'assistant',content:ctx?'👋 Course materials loaded! Ask me anything.':'👋 Upload materials or ask me anything academic!'}]);
+  }, [!!ctx]);
+
+  const send = async () => {
+    if (!input.trim()||loading) return;
+    const text=input.trim();setInput('');
+    const next=[...msgs,{role:'user',content:text}];
+    setMsgs(next);setLoading(true);setErr('');
+    try {
+      const sys = ctx
+        ? 'You are a knowledgeable SJSU academic tutor. Answer STRICTLY from the provided course materials. If the answer isn\'t in the materials, say so.\n\nCOURSE MATERIALS:\n'+ctx.slice(0,MAX_CTX)
+        : 'You are a knowledgeable SJSU academic tutor. Be helpful, precise, and encouraging.';
+      const resp = await callGPT([{role:'system',content:sys},...next.map(m=>({role:m.role,content:m.content}))], false);
+      setMsgs(m=>[...m,{role:'assistant',content:resp}]);
+    } catch(e) {setErr(e.message);}
+    setLoading(false);
+  };
+
+  return (
+    <div className="fade-in chat-wrap">
+      <div className="flex aic jcb mb4">
+        <div>
+          <h2 style={{fontFamily:'Playfair Display,serif',fontSize:'23px'}}>Academic Tutor</h2>
+          <p style={{color:'var(--gray-400)',fontSize:'12.5px'}}>Powered by GPT-4o · {ctx?'📚 Course materials loaded':'💬 General mode'}</p>
+        </div>
+        <div className="flex aic gap2">
+          <div style={{width:'8px',height:'8px',background:'var(--success)',borderRadius:'50%'}}/>
+          <span style={{fontSize:'12.5px',color:'var(--gray-600)'}}>Ready to assist</span>
+        </div>
+      </div>
+      <div className="card" style={{flex:1,display:'flex',flexDirection:'column',padding:0,overflow:'hidden'}}>
+        <div className="chat-msgs">
+          {msgs.map((m,i) => <div key={i} className={'msg '+m.role+' fade-in'}>{m.content}</div>)}
+          {loading&&<div className="typing-bubble">{[0,1,2].map(i=><div key={i} className="typing-dot" style={{animationDelay:i*.2+'s'}}/>)}</div>}
+          {err&&<div className="alert alert-warn" style={{margin:'0 4px'}}>⚠️ {err}</div>}
+          <div ref={endRef}/>
+        </div>
+        <div className="chat-bar">
+          <input className="chat-inp" placeholder="Ask about your course materials…" value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&send()} disabled={loading}/>
+          <button className="chat-send" onClick={send} disabled={!input.trim()||loading}>➤</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════
+// FAQ MATRIX
+// ══════════════════════════════════════════════════════════════
+function FAQMatrix({ ctx }) {
+  const [loading, setLoading] = useState(false);
+  const [faqs, setFaqs] = useState([]);
+  const [topics, setTopics] = useState([]);
+  const [topic, setTopic] = useState('All');
+  const [search, setSearch] = useState('');
+  const [open, setOpen] = useState(null);
+  const [err, setErr] = useState('');
+
+  const generate = async () => {
+    if (!ctx) return;
+    setLoading(true);setErr('');setFaqs([]);setTopics([]);setTopic('All');setOpen(null);
+    try {
+      const raw = await callGPT([
+        {role:'system',content:'You are an expert SJSU professor. Extract the most important questions and answers from the material. Group by topic. Return ONLY valid JSON: {"faqs":[{"topic":"Topic","question":"...","answer":"..."}]}. Generate 15-25 high-value Q&A pairs.'},
+        {role:'user',content:'Extract FAQ pairs from:\n\n'+ctx.slice(0,MAX_CTX)},
+      ], true);
+      const data = safeJSON(raw);
+      if (!data.faqs||!Array.isArray(data.faqs)) throw new Error('Invalid response');
+      setFaqs(data.faqs);
+      setTopics(['All',...Array.from(new Set(data.faqs.map(f=>f.topic)))]);
+    } catch(e) {setErr(e.message);}
+    setLoading(false);
+  };
+
+  const visible = faqs.filter(f => {
+    const tM = topic==='All'||f.topic===topic;
+    const sM = !search||f.question.toLowerCase().includes(search.toLowerCase())||f.answer.toLowerCase().includes(search.toLowerCase());
+    return tM&&sM;
+  });
+
+  return (
+    <div className="fade-in">
+      <div className="flex aic jcb mb6">
+        <div>
+          <h2 style={{fontFamily:'Playfair Display,serif',fontSize:'23px'}}>FAQ Matrix</h2>
+          <p style={{color:'var(--gray-400)',fontSize:'12.5px'}}>Key Q&A auto-extracted from your course materials</p>
+        </div>
+        <button className="btn btn-primary" onClick={generate} disabled={!ctx||loading}>
+          {loading?<><div className="spin"/>Generating…</>:'❓ Generate FAQ'}
+        </button>
+      </div>
+      {err&&<div className="alert alert-warn">⚠️ {err}</div>}
+      {!ctx&&<div className="alert alert-info">📁 Upload course materials from the sidebar first.</div>}
+      {loading&&(
+        <div className="card" style={{textAlign:'center',padding:'60px'}}>
+          <div className="spin spin-blue" style={{margin:'0 auto 14px'}}/>
+          <p style={{color:'var(--gray-400)',fontSize:'13px'}}>GPT-4o is building your knowledge base…</p>
+        </div>
+      )}
+      {faqs.length>0&&!loading&&(
+        <>
+          <div className="grid-3 mb5">
+            {[{ico:'❓',val:faqs.length,lbl:'Total Questions'},{ico:'📂',val:topics.length-1,lbl:'Topics Covered'},{ico:'🔍',val:visible.length,lbl:'Showing'}].map((s,i) => (
+              <div key={i} className="card" style={{padding:'16px',textAlign:'center'}}>
+                <div style={{fontSize:'20px',marginBottom:'5px'}}>{s.ico}</div>
+                <div style={{fontFamily:'Playfair Display,serif',fontSize:'24px',color:'var(--blue)'}}>{s.val}</div>
+                <div style={{fontSize:'11.5px',color:'var(--gray-400)'}}>{s.lbl}</div>
+              </div>
+            ))}
+          </div>
+          <input className="faq-search mb4" placeholder="🔍  Search questions and answers…" value={search} onChange={e=>{setSearch(e.target.value);setOpen(null);}} style={{marginBottom:'14px'}}/>
+          <div style={{display:'flex',gap:'7px',flexWrap:'wrap',marginBottom:'18px'}}>
+            {topics.map(t => <button key={t} className={'topic-pill'+(topic===t?' on':'')} onClick={() => {setTopic(t);setOpen(null);}}>{t}</button>)}
+          </div>
+          {visible.length===0?(
+            <div className="card empty"><div className="empty-ico">🔍</div><div className="empty-head">No results</div><div className="empty-body">Try a different search or topic</div></div>
+          ):(
+            visible.map((f,i) => (
+              <div key={i} className="faq-item">
+                <div className="faq-q" onClick={() => setOpen(open===i?null:i)}>
+                  <div style={{flex:1}}>
+                    <span className="badge badge-blue" style={{marginBottom:'5px',display:'inline-block',fontSize:'10px'}}>{f.topic}</span>
+                    <div>{f.question}</div>
+                  </div>
+                  <span className={'faq-chevron'+(open===i?' open':'')}>▼</span>
+                </div>
+                {open===i&&<div className="faq-a fade-in">{f.answer}</div>}
+              </div>
+            ))
+          )}
+        </>
+      )}
+      {faqs.length===0&&!loading&&(
+        <div className="card empty"><div className="empty-ico">❓</div><div className="empty-head">No FAQ Matrix yet</div><div className="empty-body">Upload materials and click "Generate FAQ"</div></div>
+      )}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════
+// NOTES (New: per-topic note creation and management)
+// ══════════════════════════════════════════════════════════════
+function Notes({ notes, setNotes }) {
+  const [showForm, setShowForm] = useState(false);
+  const [editId, setEditId] = useState(null);
+  const [viewId, setViewId] = useState(null);
+  const [search, setSearch] = useState('');
+  const [topicFilter, setTopicFilter] = useState('All');
+  const emptyForm = {title:'',topic:'',content:''};
+  const [form, setForm] = useState(emptyForm);
+
+  const allTopics = ['All',...Array.from(new Set(notes.filter(n=>n.topic).map(n=>n.topic)))];
+  const fmtDate = iso => {const d=new Date(iso);return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+' '+d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});};
+
+  const saveNote = () => {
+    if (!form.title.trim()) return;
+    const now = new Date().toISOString();
+    if (editId) setNotes(p=>p.map(n=>n.id===editId?{...n,...form,updatedAt:now}:n));
+    else setNotes(p=>[...p,{...form,id:Date.now(),createdAt:now,updatedAt:now}]);
+    setForm(emptyForm);setShowForm(false);setEditId(null);
+  };
+  const deleteNote = id => {setNotes(p=>p.filter(n=>n.id!==id));if(viewId===id)setViewId(null);};
+  const editNote = n => {setForm({title:n.title,topic:n.topic||'',content:n.content});setEditId(n.id);setShowForm(true);setViewId(null);};
+
+  const visible = notes.filter(n => {
+    const tM = topicFilter==='All'||n.topic===topicFilter;
+    const sM = !search||n.title.toLowerCase().includes(search.toLowerCase())||n.content.toLowerCase().includes(search.toLowerCase());
+    return tM&&sM;
+  }).sort((a,b) => new Date(b.updatedAt)-new Date(a.updatedAt));
+
+  const viewNote = viewId ? notes.find(n=>n.id===viewId) : null;
+
+  return (
+    <div className="fade-in">
+      <div className="flex aic jcb mb6">
+        <div>
+          <h2 style={{fontFamily:'Playfair Display,serif',fontSize:'23px'}}>Notes</h2>
+          <p style={{color:'var(--gray-400)',fontSize:'12.5px'}}>Create and organize your study notes by topic</p>
+        </div>
+        <button className="btn btn-primary" onClick={() => {setShowForm(true);setEditId(null);setForm(emptyForm);}}>+ New Note</button>
+      </div>
+
+      {showForm&&(
+        <div className="modal-bg" onClick={e=>e.target===e.currentTarget&&(setShowForm(false),setEditId(null))}>
+          <div className="modal fade-in" style={{maxWidth:'560px'}}>
+            <div className="modal-title">{editId?'Edit Note':'New Note'}</div>
+            <div style={{display:'flex',flexDirection:'column',gap:'13px'}}>
+              <div>
+                <label style={{fontSize:'12px',fontWeight:'600',color:'var(--gray-600)',display:'block',marginBottom:'5px'}}>Title *</label>
+                <input className="inp" placeholder="e.g. Chapter 6 Key Points" value={form.title} onChange={e=>setForm(p=>({...p,title:e.target.value}))}/>
+              </div>
+              <div>
+                <label style={{fontSize:'12px',fontWeight:'600',color:'var(--gray-600)',display:'block',marginBottom:'5px'}}>Topic / Course</label>
+                <input className="inp" placeholder="e.g. BUS4 119B" value={form.topic} onChange={e=>setForm(p=>({...p,topic:e.target.value}))}/>
+              </div>
+              <div>
+                <label style={{fontSize:'12px',fontWeight:'600',color:'var(--gray-600)',display:'block',marginBottom:'5px'}}>Content</label>
+                <textarea className="inp" rows={8} placeholder="Write your notes here…" value={form.content} onChange={e=>setForm(p=>({...p,content:e.target.value}))} style={{minHeight:'180px'}}/>
+                <div style={{fontSize:'11px',color:'var(--gray-400)',marginTop:'4px',textAlign:'right'}}>{form.content.length} characters</div>
+              </div>
+              <div className="flex gap2" style={{justifyContent:'flex-end',marginTop:'4px'}}>
+                <button className="btn btn-outline" onClick={() => {setShowForm(false);setEditId(null);}}>Cancel</button>
+                <button className="btn btn-primary" onClick={saveNote} disabled={!form.title.trim()}>{editId?'Save Changes':'Create Note'}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {viewNote&&(
+        <div className="modal-bg" onClick={e=>e.target===e.currentTarget&&setViewId(null)}>
+          <div className="modal fade-in" style={{maxWidth:'620px'}}>
+            <div className="flex aic jcb" style={{marginBottom:'16px'}}>
+              <div>
+                <div className="modal-title" style={{marginBottom:'4px'}}>{viewNote.title}</div>
+                {viewNote.topic&&<span className="badge badge-blue">{viewNote.topic}</span>}
+              </div>
+              <button className="btn btn-outline btn-sm" onClick={() => setViewId(null)}>✕ Close</button>
+            </div>
+            <div style={{fontSize:'11.5px',color:'var(--gray-400)',marginBottom:'14px'}}>Created: {fmtDate(viewNote.createdAt)} · Updated: {fmtDate(viewNote.updatedAt)}</div>
+            <div className="note-content" style={{background:'var(--gray-50)',borderRadius:'var(--r-sm)',padding:'18px',minHeight:'150px'}}>{viewNote.content||'No content'}</div>
+            <div className="flex gap2" style={{marginTop:'16px',justifyContent:'flex-end'}}>
+              <button className="btn btn-outline btn-sm" onClick={() => editNote(viewNote)}>Edit</button>
+              <button className="btn btn-danger btn-sm" onClick={() => deleteNote(viewNote.id)}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="grid-3 mb5">
+        {[{ico:'📓',val:notes.length,lbl:'Total Notes',clr:'var(--blue)'},{ico:'📂',val:allTopics.length-1,lbl:'Topics',clr:'var(--gold)'},{ico:'📝',val:notes.reduce((a,n)=>a+n.content.length,0),lbl:'Characters',clr:'var(--success)'}].map((s,i) => (
+          <div key={i} className="card" style={{padding:'16px',textAlign:'center'}}>
+            <div style={{fontSize:'20px',marginBottom:'5px'}}>{s.ico}</div>
+            <div style={{fontFamily:'Playfair Display,serif',fontSize:'24px',color:s.clr}}>{s.val}</div>
+            <div style={{fontSize:'11.5px',color:'var(--gray-400)'}}>{s.lbl}</div>
+          </div>
+        ))}
+      </div>
+
+      <input className="faq-search mb4" placeholder="🔍  Search notes…" value={search} onChange={e=>setSearch(e.target.value)} style={{marginBottom:'14px'}}/>
+      {allTopics.length>1&&(
+        <div style={{display:'flex',gap:'7px',flexWrap:'wrap',marginBottom:'18px'}}>
+          {allTopics.map(t => <button key={t} className={'topic-pill'+(topicFilter===t?' on':'')} onClick={() => setTopicFilter(t)}>{t}</button>)}
+        </div>
+      )}
+
+      {visible.length===0?(
+        <div className="card empty"><div className="empty-ico">📓</div><div className="empty-head">{notes.length===0?'No notes yet':'No matching notes'}</div><div className="empty-body">{notes.length===0?'Click "+ New Note" to create your first note':'Try a different search'}</div></div>
+      ):(
+        visible.map(note => (
+          <div key={note.id} className="note-card" onClick={() => setViewId(note.id)}>
+            <div className="flex aic jcb" style={{marginBottom:'8px'}}>
+              <div className="flex aic gap2">
+                <span style={{fontSize:'15px',fontWeight:'500'}}>{note.title}</span>
+                {note.topic&&<span className="badge badge-blue">{note.topic}</span>}
+              </div>
+              <div className="flex gap2" onClick={e=>e.stopPropagation()}>
+                <button className="btn btn-outline btn-xs" onClick={() => editNote(note)}>Edit</button>
+                <button className="btn btn-danger btn-xs" onClick={() => deleteNote(note.id)}>✕</button>
+              </div>
+            </div>
+            <div className="note-content note-preview">{note.content||'No content'}</div>
+            <div style={{fontSize:'11px',color:'var(--gray-400)',marginTop:'8px'}}>{fmtDate(note.updatedAt)}</div>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════
+// STUDY PLANNER
+// ══════════════════════════════════════════════════════════════
+function StudyPlanner({ tasks, setTasks }) {
+  const [filter, setFilter] = useState('all');
+  const [showForm, setShowForm] = useState(false);
+  const [editId, setEditId] = useState(null);
+  const emptyForm = {title:'',course:'',dueDate:'',priority:'normal',notes:''};
+  const [form, setForm] = useState(emptyForm);
+
+  const daysUntil = d => d ? Math.ceil((new Date(d)-new Date())/86400000) : 999;
+  const urgency = t => {if(!t.dueDate) return 'normal'; const d=daysUntil(t.dueDate); if(d<=1) return 'urgent'; if(d<=4) return 'soon'; return 'normal';};
+  const saveTask = () => {
+    if (!form.title.trim()) return;
+    if (editId) setTasks(p=>p.map(t=>t.id===editId?{...t,...form}:t));
+    else setTasks(p=>[...p,{...form,id:Date.now(),done:false}]);
+    setForm(emptyForm);setShowForm(false);setEditId(null);
+  };
+  const del = id => setTasks(p=>p.filter(t=>t.id!==id));
+  const toggle = id => setTasks(p=>p.map(t=>t.id===id?{...t,done:!t.done}:t));
+  const edit = t => {setForm({title:t.title,course:t.course||'',dueDate:t.dueDate||'',priority:t.priority||'normal',notes:t.notes||''});setEditId(t.id);setShowForm(true);};
+
+  const visible = tasks.map(t=>({...t,urg:urgency(t)})).filter(t => {
+    if (filter==='pending') return !t.done;
+    if (filter==='urgent') return !t.done&&t.urg==='urgent';
+    if (filter==='done') return t.done;
+    return true;
+  }).sort((a,b) => {if(a.done!==b.done) return a.done?1:-1; const o={urgent:0,soon:1,normal:2}; return (o[a.urg]||2)-(o[b.urg]||2);});
+
+  const done=tasks.filter(t=>t.done).length, pending=tasks.filter(t=>!t.done).length, pct=tasks.length?Math.round((done/tasks.length)*100):0;
+
+  return (
+    <div className="fade-in">
+      <div className="flex aic jcb mb6">
+        <div>
+          <h2 style={{fontFamily:'Playfair Display,serif',fontSize:'23px'}}>Study Planner</h2>
+          <p style={{color:'var(--gray-400)',fontSize:'12.5px'}}>Track assignments, tasks & exam deadlines</p>
+        </div>
+        <button className="btn btn-primary" onClick={() => {setShowForm(true);setEditId(null);setForm(emptyForm);}}>+ Add Task</button>
+      </div>
+      {showForm&&(
+        <div className="modal-bg" onClick={e=>e.target===e.currentTarget&&(setShowForm(false),setEditId(null))}>
+          <div className="modal fade-in">
+            <div className="modal-title">{editId?'Edit Task':'New Task'}</div>
+            <div style={{display:'flex',flexDirection:'column',gap:'13px'}}>
+              <div><label style={{fontSize:'12px',fontWeight:'600',color:'var(--gray-600)',display:'block',marginBottom:'5px'}}>Task Title *</label><input className="inp" placeholder="e.g. Study Chapter 6" value={form.title} onChange={e=>setForm(p=>({...p,title:e.target.value}))}/></div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px'}}>
+                <div><label style={{fontSize:'12px',fontWeight:'600',color:'var(--gray-600)',display:'block',marginBottom:'5px'}}>Course</label><input className="inp" placeholder="e.g. BUS4 119B" value={form.course} onChange={e=>setForm(p=>({...p,course:e.target.value}))}/></div>
+                <div><label style={{fontSize:'12px',fontWeight:'600',color:'var(--gray-600)',display:'block',marginBottom:'5px'}}>Due Date</label><input className="inp" type="date" value={form.dueDate} onChange={e=>setForm(p=>({...p,dueDate:e.target.value}))}/></div>
+              </div>
+              <div><label style={{fontSize:'12px',fontWeight:'600',color:'var(--gray-600)',display:'block',marginBottom:'5px'}}>Priority</label><select className="inp" value={form.priority} onChange={e=>setForm(p=>({...p,priority:e.target.value}))}><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></div>
+              <div><label style={{fontSize:'12px',fontWeight:'600',color:'var(--gray-600)',display:'block',marginBottom:'5px'}}>Notes (optional)</label><textarea className="inp" rows={2} placeholder="Any extra notes…" value={form.notes} onChange={e=>setForm(p=>({...p,notes:e.target.value}))}/></div>
+              <div className="flex gap2" style={{justifyContent:'flex-end',marginTop:'4px'}}>
+                <button className="btn btn-outline" onClick={() => {setShowForm(false);setEditId(null);}}>Cancel</button>
+                <button className="btn btn-primary" onClick={saveTask} disabled={!form.title.trim()}>{editId?'Save Changes':'Add Task'}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      <div className="grid-3 mb5">
+        <div className="readiness-card">
+          <div style={{fontSize:'11px',color:'rgba(255,255,255,.6)',fontWeight:'600',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'8px'}}>Exam Readiness</div>
+          <div style={{fontFamily:'Playfair Display,serif',fontSize:'30px',marginBottom:'4px'}}>{pct}%</div>
+          <div style={{fontSize:'12px',color:'rgba(255,255,255,.6)',marginBottom:'12px'}}>{done} of {tasks.length} tasks complete</div>
+          {tasks.length>0&&<div style={{height:'5px',background:'rgba(255,255,255,.2)',borderRadius:'3px'}}><div style={{height:'100%',background:'var(--gold)',borderRadius:'3px',width:pct+'%',transition:'width .35s'}}/></div>}
+        </div>
+        <div className="card" style={{textAlign:'center'}}><div style={{fontSize:'24px',marginBottom:'6px'}}>📋</div><div style={{fontFamily:'Playfair Display,serif',fontSize:'28px',color:'var(--warning)'}}>{pending}</div><div style={{fontSize:'12px',color:'var(--gray-400)'}}>Pending Tasks</div></div>
+        <div className="card" style={{textAlign:'center'}}><div style={{fontSize:'24px',marginBottom:'6px'}}>🚨</div><div style={{fontFamily:'Playfair Display,serif',fontSize:'28px',color:'var(--danger)'}}>{tasks.filter(t=>!t.done&&urgency(t)==='urgent').length}</div><div style={{fontSize:'12px',color:'var(--gray-400)'}}>Urgent</div></div>
+      </div>
+      <div style={{display:'flex',gap:'8px',marginBottom:'18px'}}>
+        {[['all','All Tasks'],['pending','Pending'],['urgent','🚨 Urgent'],['done','✓ Done']].map(([id,lbl]) => <button key={id} className={'filter-tab'+(filter===id?' on':'')} onClick={() => setFilter(id)}>{lbl}</button>)}
+      </div>
+      {visible.length===0?(
+        <div className="card empty"><div className="empty-ico">📅</div><div className="empty-head">{filter==='all'?'No tasks yet':'No tasks here'}</div><div className="empty-body">{filter==='all'?'Click "+ Add Task"':'Try "All Tasks"'}</div></div>
+      ):(
+        visible.map(t => {
+          const d=t.dueDate?daysUntil(t.dueDate):null, u=t.urg;
+          const dl = d!==null?(d<0?'Overdue':d===0?'Today':d===1?'Tomorrow':d+'d'):null;
+          return (
+            <div key={t.id} className={'task-card '+(t.done?'done-task':u)}>
+              <div className="flex aic gap3">
+                <div className={'task-check'+(t.done?' checked':'')} onClick={() => toggle(t.id)}>{t.done&&'✓'}</div>
+                <div style={{flex:1}}>
+                  <div className="flex aic gap2" style={{marginBottom:'5px'}}>
+                    <span style={{fontSize:'14px',fontWeight:'500',textDecoration:t.done?'line-through':'none',color:t.done?'var(--gray-400)':'var(--gray-800)'}}>{t.title}</span>
+                    {!t.done&&u==='urgent'&&<span className="badge badge-red">Urgent</span>}
+                    {!t.done&&u==='soon'&&<span className="badge badge-orange">Soon</span>}
+                    {t.priority==='high'&&!t.done&&u==='normal'&&<span className="badge badge-blue">High</span>}
+                  </div>
+                  <div className="flex aic gap3">
+                    {t.course&&<span style={{fontSize:'12px',color:'var(--gray-400)'}}>📚 {t.course}</span>}
+                    {t.dueDate&&<span style={{fontSize:'12px',color:u==='urgent'?'var(--danger)':u==='soon'?'var(--warning)':'var(--gray-400)'}}>📅 {new Date(t.dueDate).toLocaleDateString('en-US',{month:'short',day:'numeric'})}{dl&&!t.done?' ('+dl+')':''}</span>}
+                    {t.notes&&<span style={{fontSize:'12px',color:'var(--gray-400)'}} title={t.notes}>📝 Note</span>}
+                  </div>
+                </div>
+                <div className="flex gap2">
+                  <button className="btn btn-outline btn-xs" onClick={() => edit(t)}>Edit</button>
+                  <button className="btn btn-danger btn-xs" onClick={() => del(t.id)}>✕</button>
+                </div>
+              </div>
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════
+// STUDY TIMER
+// ══════════════════════════════════════════════════════════════
+function StudyTimer() {
+  const PRESETS = [{label:'25 / 5',work:25,brk:5},{label:'45 / 15',work:45,brk:15},{label:'50 / 10',work:50,brk:10},{label:'Custom',work:0,brk:0}];
+  const [preset, setPreset] = useState(0);
+  const [workMin, setWorkMin] = useState(25);
+  const [brkMin, setBrkMin] = useState(5);
+  const [phase, setPhase] = useState('work');
+  const [running, setRunning] = useState(false);
+  const [secs, setSecs] = useState(25*60);
+  const [total, setTotal] = useState(25*60);
+  const [sessions, setSessions] = useState([]);
+  const [subject, setSubject] = useState('');
+  const [cycles, setCycles] = useState(0);
+  const [cw, setCw] = useState(25);
+  const [cb, setCb] = useState(5);
+
+  const wRef=useRef(25),bRef=useRef(5),subRef=useRef('');
+  useEffect(() => {wRef.current=workMin;}, [workMin]);
+  useEffect(() => {bRef.current=brkMin;}, [brkMin]);
+  useEffect(() => {subRef.current=subject;}, [subject]);
+
+  useEffect(() => {
+    if (!running) return;
+    const id = setInterval(() => {
+      setSecs(s => {
+        if (s>1) return s-1;
+        clearInterval(id);setRunning(false);
+        setPhase(p => {
+          if (p==='work') {
+            setCycles(c=>c+1);
+            setSessions(prev=>[...prev,{subject:subRef.current||'General Study',duration:wRef.current,time:new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})}]);
+            const bs=bRef.current*60;setTotal(bs);setTimeout(()=>setSecs(bs),0);return 'break';
+          } else {
+            const ws=wRef.current*60;setTotal(ws);setTimeout(()=>setSecs(ws),0);return 'work';
+          }
+        });
+        return 0;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [running]);
+
+  const applyPreset = i => {setPreset(i);setRunning(false);if(PRESETS[i].work>0){setWorkMin(PRESETS[i].work);setBrkMin(PRESETS[i].brk);const s=PRESETS[i].work*60;setSecs(s);setTotal(s);setPhase('work');}};
+  const applyCustom = () => {const w=Math.max(1,Math.min(120,cw)),b=Math.max(1,Math.min(60,cb));setWorkMin(w);setBrkMin(b);const s=w*60;setSecs(s);setTotal(s);setPhase('work');setRunning(false);};
+  const reset = () => {setRunning(false);const s=workMin*60;setSecs(s);setTotal(s);setPhase('work');};
+  const skip = () => {const np=phase==='work'?'break':'work';setPhase(np);setRunning(false);const s=np==='break'?brkMin*60:workMin*60;setSecs(s);setTotal(s);};
+
+  const fmt = s => String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+  const R=85, C=2*Math.PI*R, pct=total>0?secs/total:1, off=C*(1-pct);
+  const col = phase==='work'?'var(--blue)':'var(--success)';
+  const studyMin = sessions.reduce((a,s)=>a+s.duration,0);
+
+  return (
+    <div className="fade-in">
+      <div className="mb6">
+        <h2 style={{fontFamily:'Playfair Display,serif',fontSize:'23px'}}>Study Timer</h2>
+        <p style={{color:'var(--gray-400)',fontSize:'12.5px'}}>Pomodoro-style focus sessions to maximize study efficiency</p>
+      </div>
+      <div className="grid-2">
+        <div className="card" style={{textAlign:'center'}}>
+          <div style={{marginBottom:'16px'}}>
+            <span className="badge" style={{background:phase==='work'?'rgba(0,85,162,.1)':'rgba(34,197,94,.1)',color:col,fontSize:'12px',padding:'5px 16px'}}>
+              {phase==='work'?'🎯 Focus Session':'☕ Break Time'}
+            </span>
+          </div>
+          <div className="timer-ring-wrap">
+            <svg className="timer-ring-svg" width="200" height="200" viewBox="0 0 200 200">
+              <circle className="timer-ring-bg" cx="100" cy="100" r={R}/>
+              <circle className="timer-ring-prog" cx="100" cy="100" r={R} stroke={col} strokeDasharray={C} strokeDashoffset={off}/>
+            </svg>
+            <div className="timer-ring-text">
+              <div className="timer-digits">{fmt(secs)}</div>
+              <div className="timer-phase-lbl" style={{color:col}}>{phase==='work'?'Work':'Break'}</div>
+            </div>
+          </div>
+          <div className="timer-btn-row">
+            <button className="tctrl tctrl-sm" onClick={reset} title="Reset">↺</button>
+            <button className="tctrl tctrl-lg" onClick={() => setRunning(r=>!r)}>{running?'⏸':'▶'}</button>
+            <button className="tctrl tctrl-sm" onClick={skip} title="Skip">⏭</button>
+          </div>
+          <div className="preset-row">
+            {PRESETS.map((p,i) => <button key={i} className={'preset-btn'+(preset===i?' on':'')} onClick={() => applyPreset(i)}>{p.label}</button>)}
+          </div>
+          {preset===3&&(
+            <div className="fade-in" style={{display:'flex',gap:'10px',alignItems:'flex-end',justifyContent:'center',marginBottom:'14px'}}>
+              <div><div style={{fontSize:'11px',color:'var(--gray-400)',marginBottom:'4px'}}>Work (min)</div><input type="number" className="inp" style={{width:'80px',textAlign:'center'}} min="1" max="120" value={cw} onChange={e=>setCw(+e.target.value)}/></div>
+              <div><div style={{fontSize:'11px',color:'var(--gray-400)',marginBottom:'4px'}}>Break (min)</div><input type="number" className="inp" style={{width:'80px',textAlign:'center'}} min="1" max="60" value={cb} onChange={e=>setCb(+e.target.value)}/></div>
+              <button className="btn btn-primary btn-sm" onClick={applyCustom}>Set</button>
+            </div>
+          )}
+          <input className="inp" placeholder="Subject / topic (optional)" value={subject} onChange={e=>setSubject(e.target.value)} style={{fontSize:'13px',marginTop:'6px'}}/>
+        </div>
+        <div style={{display:'flex',flexDirection:'column',gap:'16px'}}>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px'}}>
+            {[{ico:'🎯',val:cycles,lbl:'Sessions Done',clr:'var(--blue)'},{ico:'⏱',val:studyMin+'m',lbl:'Total Studied',clr:'var(--gold)'}].map((s,i) => (
+              <div key={i} className="card" style={{textAlign:'center',padding:'16px'}}>
+                <div style={{fontSize:'20px',marginBottom:'5px'}}>{s.ico}</div>
+                <div style={{fontFamily:'Playfair Display,serif',fontSize:'22px',color:s.clr}}>{s.val}</div>
+                <div style={{fontSize:'11.5px',color:'var(--gray-400)'}}>{s.lbl}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{background:'var(--gold-pale)',border:'1px solid rgba(229,168,35,.25)',borderRadius:'var(--r)',padding:'16px'}}>
+            <div style={{fontSize:'12px',fontWeight:'700',color:'#92680A',textTransform:'uppercase',letterSpacing:'.07em',marginBottom:'10px'}}>✦ Spartan Study Tips</div>
+            {['Take real breaks — step away from your screen','Review your notes at the start of each session','Silence notifications during focus sessions','Stay hydrated — water boosts concentration'].map((tip,i) => (
+              <div key={i} style={{display:'flex',gap:'8px',marginBottom:'7px'}}>
+                <span style={{color:'var(--gold)',fontWeight:'700',flexShrink:0}}>·</span>
+                <span style={{fontSize:'12.5px',color:'#7A5000'}}>{tip}</span>
+              </div>
+            ))}
+          </div>
+          <div className="card">
+            <div className="flex aic jcb" style={{marginBottom:'12px'}}>
+              <div style={{fontSize:'13.5px',fontWeight:'600'}}>Session Log</div>
+              {sessions.length>0&&<button className="btn btn-outline btn-xs" onClick={() => setSessions([])}>Clear</button>}
+            </div>
+            {sessions.length===0?(
+              <p style={{fontSize:'13px',color:'var(--gray-400)',textAlign:'center',padding:'16px 0'}}>Start a session to log your progress</p>
+            ):(
+              <div className="session-log">
+                {[...sessions].reverse().map((s,i) => (
+                  <div key={i} className="slog-row">
+                    <div><div style={{fontSize:'13px',fontWeight:'500'}}>{s.subject}</div><div style={{fontSize:'11.5px',color:'var(--gray-400)'}}>{s.time}</div></div>
+                    <span className="badge badge-blue">{s.duration}m</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════
+// APP ROOT
+// ══════════════════════════════════════════════════════════════
+function App() {
+  const [page, setPage] = useState('dashboard');
+  const [files, setFiles] = useState([]);
+  const [ctx, setCtx] = useState('');
+  const [cards, setCards] = useState([]);
+  const [scores, setScores] = useState([]);
+  const [tasks, setTasks] = useState([]);
+  const [notes, setNotes] = useState([]);
+  const [processing, setProcessing] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  const showToast = (message, type) => setToast({message,type});
+
+  const meta = {
+    dashboard:{title:'Spartan Study',sub:'Your AI-powered exam preparation hub'},
+    flashcards:{title:'Flashcard Deck',sub:'Active recall for deep understanding'},
+    quiz:{title:'Spartan Quiz',sub:'AI-generated exam simulator'},
+    simplifier:{title:'Concept Simplifier',sub:'Transform complex jargon into clarity'},
+    tutor:{title:'Academic Tutor',sub:'24/7 GPT-4o study companion'},
+    faq:{title:'FAQ Matrix',sub:'Auto-extracted course knowledge base'},
+    notes:{title:'Notes',sub:'Create and organize study notes'},
+    planner:{title:'Study Planner',sub:'Track tasks and exam deadlines'},
+    timer:{title:'Study Timer',sub:'Pomodoro focus sessions'},
+  };
+
+  const onUpload = async (file) => {
+    setProcessing(true);
+    try {
+      let text='';
+      const ext=file.name.split('.').pop().toLowerCase();
+      if (ext==='pdf') text=await parsePDF(file);
+      if (ext==='docx') text=await parseDOCX(file);
+      if (ext==='pptx') text=await parsePPTX(file);
+      if (!text) throw new Error('Unsupported file type');
+      setFiles(prev=>[...prev,{name:file.name,text}]);
+      setCtx(prev=>prev+'\n\n═══ '+file.name+' ═══\n'+text);
+      showToast('📁 '+file.name+' loaded successfully','success');
+    } catch(e) {console.error('Parse error:',e);showToast('Failed to parse '+file.name,'error');}
+    setProcessing(false);
+  };
+
+  const onRemove = i => {
+    const rm=files[i];
+    setFiles(prev=>prev.filter((_,j)=>j!==i));
+    setCtx(prev => {
+      const marker='\n\n═══ '+rm.name+' ═══\n';
+      const s=prev.indexOf(marker);
+      if (s===-1) return prev;
+      const e=prev.indexOf('\n\n═══ ',s+marker.length);
+      return prev.slice(0,s)+(e===-1?'':prev.slice(e));
+    });
+    showToast(rm.name+' removed','success');
+  };
+
+  const {title,sub} = meta[page]||{title:'Spartan Prep',sub:''};
+
+  return (
+    <div className="layout">
+      <Sidebar page={page} go={setPage} files={files} onUpload={onUpload} onRemove={onRemove}/>
+      <div className="main">
+        <div className="topbar">
+          <div><div className="topbar-title">{title}</div><div className="topbar-sub">{sub}</div></div>
+          <div className="flex aic gap3">
+            {processing&&<div className="flex aic gap2" style={{fontSize:'12.5px',color:'var(--gray-400)'}}><div className="spin spin-blue" style={{width:'13px',height:'13px'}}/>Parsing file…</div>}
+            <span className="badge badge-gold">✦ GPT-4o</span>
+          </div>
+        </div>
+        <div className="content">
+          {page==='dashboard'&&<Dashboard files={files} flashcards={cards} scores={scores} tasks={tasks} notes={notes} go={setPage}/>}
+          {page==='flashcards'&&<Flashcards ctx={ctx} files={files} cards={cards} setCards={setCards}/>}
+          {page==='quiz'&&<Quiz ctx={ctx} files={files} onScore={s=>setScores(p=>[...p,s])}/>}
+          {page==='simplifier'&&<Simplifier ctx={ctx}/>}
+          {page==='tutor'&&<Tutor ctx={ctx}/>}
+          {page==='faq'&&<FAQMatrix ctx={ctx}/>}
+          {page==='notes'&&<Notes notes={notes} setNotes={setNotes}/>}
+          {page==='planner'&&<StudyPlanner tasks={tasks} setTasks={setTasks}/>}
+          {page==='timer'&&<StudyTimer/>}
+        </div>
+      </div>
+      {toast&&<Toast message={toast.message} type={toast.type} onClose={() => setToast(null)}/>}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
