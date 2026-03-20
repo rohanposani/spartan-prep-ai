@@ -11,12 +11,15 @@ const PORT = process.env.PORT || 3000;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
 
 if (!OPENAI_API_KEY) {
-  console.error('\n  ⚠️  OPENAI_API_KEY is not set!');
-  console.error('  Run with: OPENAI_API_KEY=sk-... node server.js\n');
-  process.exit(1);
+  console.warn('\n  ⚠️  OPENAI_API_KEY is not set!');
+  console.warn('  AI features will not work until the key is provided.');
+  console.warn('  Run with: OPENAI_API_KEY=sk-... node server.js\n');
 }
 
 app.use(express.json({ limit: '10mb' }));
+
+// Health check (for uptime monitors / cold start pings)
+app.get('/health', (req, res) => res.status(200).send('ok'));
 
 // Serve spartanstudy.html at root (before static middleware)
 app.get('/', (req, res) => {

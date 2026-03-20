@@ -329,6 +329,32 @@ async function parseDOCX(file) {
   return res.value.trim() || 'Could not extract text from DOCX.';
 }
 
+async function parseDOC(file) {
+  const buf = await file.arrayBuffer();
+  const res = await mammoth.extractRawText({ arrayBuffer: buf });
+  return res.value.trim() || 'Could not extract text from DOC.';
+}
+
+async function parsePPT(file) {
+  const buf = await file.arrayBuffer();
+  const zip = await JSZip.loadAsync(buf);
+  const keys = Object.keys(zip.files)
+    .filter(n => /ppt\/slides\/slide\d+\.xml$/.test(n))
+    .sort((a, b) => {
+      const na = parseInt(a.match(/slide(\d+)/)[1]);
+      const nb = parseInt(b.match(/slide(\d+)/)[1]);
+      return na - nb;
+    });
+  let out = '';
+  for (const name of keys) {
+    const xml     = await zip.files[name].async('string');
+    const matches = xml.match(/<a:t[^>]*?>([^<]+)<\/a:t>/g) || [];
+    const text    = matches.map(m => m.replace(/<[^>]*>/g, '')).join(' ').trim();
+    if (text) out += `[Slide] ${text}\n\n`;
+  }
+  return out.trim() || 'Could not extract text from PPT.';
+}
+
 async function parsePPTX(file) {
   const buf  = await file.arrayBuffer();
   const zip  = await JSZip.loadAsync(buf);
@@ -396,11 +422,11 @@ function Sidebar({ page, go, files, onUpload, onRemove }) {
 
   const handle = async (list) => {
     for (const f of Array.from(list)) {
-      if (f.name.match(/\.(pdf|docx|pptx)$/i)) onUpload(f);
+      if (f.name.match(/\.(pdf|docx?|pptx?)$/i)) onUpload(f);
     }
   };
 
-  const ico = n => n.endsWith('.pdf') ? '📄' : n.endsWith('.docx') ? '📃' : '📊';
+  const ico = n => n.endsWith('.pdf') ? '📄' : (n.endsWith('.doc') || n.endsWith('.docx')) ? '📃' : '📊';
 
   const nav = [
     { id:'dashboard',  icon:'⊞', label:'Dashboard'     },
@@ -442,9 +468,9 @@ function Sidebar({ page, go, files, onUpload, onRemove }) {
           onDrop={e => { e.preventDefault(); setDrag(false); handle(e.dataTransfer.files); }}>
           <div className="upload-drop-icon">📁</div>
           <div className="upload-drop-text">Drop files or click</div>
-          <div className="upload-drop-hint">PDF · DOCX · PPTX</div>
+          <div className="upload-drop-hint">PDF · DOC · DOCX · PPT · PPTX</div>
         </div>
-        <input ref={inputRef} type="file" multiple accept=".pdf,.docx,.pptx" style={{display:'none'}}
+        <input ref={inputRef} type="file" multiple accept=".pdf,.doc,.docx,.ppt,.pptx" style={{display:'none'}}
           onChange={e => { handle(e.target.files); e.target.value = ''; }} />
         {files.map((f, i) => (
           <div key={i} className="file-row">
@@ -804,7 +830,10 @@ function Quiz({ ctx, files, onScore }) {
               );
             })}
           </div>
-          <button className="btn btn-primary" style={{width:'100%',justifyContent:'center'}} onClick={generate}>📝 Retake Quiz</button>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px'}}>
+            <button className="btn btn-primary" style={{justifyContent:'center'}} onClick={generate}>📝 Retake Quiz</button>
+            <button className="btn btn-gold" style={{justifyContent:'center'}} onClick={() => {setQs([]);setDone(false);setQIdx(0);setSel(null);setShown(false);setScore(0);setAnswers([]);setErr('');}}>✨ New Quiz</button>
+          </div>
         </div>
       </div>
     );
@@ -1541,7 +1570,9 @@ function App() {
       let text='';
       const ext=file.name.split('.').pop().toLowerCase();
       if (ext==='pdf') text=await parsePDF(file);
+      if (ext==='doc') text=await parseDOC(file);
       if (ext==='docx') text=await parseDOCX(file);
+      if (ext==='ppt') text=await parsePPT(file);
       if (ext==='pptx') text=await parsePPTX(file);
       if (!text) throw new Error('Unsupported file type');
       setFiles(prev=>[...prev,{name:file.name,text}]);
