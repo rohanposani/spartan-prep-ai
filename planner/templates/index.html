@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daily Planner</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="app">
+    <!-- Header -->
+    <div class="header">
+      <h1>Daily Planner</h1>
+      <div class="header-controls">
+        <div class="view-toggle">
+          <button class="view-btn active" data-view="day" onclick="switchView('day')">Day</button>
+          <button class="view-btn" data-view="month" onclick="switchView('month')">Month</button>
+        </div>
+        <div class="date-nav">
+          <button onclick="navPrev()">&larr;</button>
+          <span class="current-date"></span>
+          <button onclick="navNext()">&rarr;</button>
+          <button onclick="goToday()" class="btn btn-primary btn-sm" style="margin-left:4px;">Today</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ DAY VIEW ═══ -->
+    <div id="day-view">
+      <!-- Add Task -->
+      <div class="card" style="margin-bottom: 20px;">
+        <div class="card-title">Add a Task</div>
+        <div class="add-task-form">
+          <input type="text" id="task-title" placeholder="What do you need to do?" autocomplete="off">
+          <select id="task-time"><option value="" disabled selected>Select time</option></select>
+          <div class="color-picker-wrap">
+            <input type="color" id="task-color" value="#2d6a4f" title="Task color">
+          </div>
+          <button class="btn btn-primary" onclick="addTask()">Add</button>
+        </div>
+      </div>
+
+      <!-- Main Grid -->
+      <div class="main-grid">
+        <!-- Calendar Column -->
+        <div class="card">
+          <div class="card-title">Schedule</div>
+          <div class="stats-bar"></div>
+          <div class="task-list"></div>
+          <div class="calendar">
+            <div class="time-slots"></div>
+          </div>
+        </div>
+
+        <!-- Journal Column -->
+        <div class="card">
+          <div class="card-title">Daily Journal</div>
+          <div class="journal-question"></div>
+          <textarea class="journal-textarea" placeholder="Write your thoughts here..." oninput="onJournalInput(event)"></textarea>
+          <div class="journal-save-status"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ MONTH VIEW ═══ -->
+    <div id="month-view" style="display:none;">
+      <div class="month-grid-card card">
+        <div class="month-grid-header">
+          <div class="month-day-label">Sun</div>
+          <div class="month-day-label">Mon</div>
+          <div class="month-day-label">Tue</div>
+          <div class="month-day-label">Wed</div>
+          <div class="month-day-label">Thu</div>
+          <div class="month-day-label">Fri</div>
+          <div class="month-day-label">Sat</div>
+        </div>
+        <div class="month-grid"></div>
+      </div>
+
+      <!-- Day detail panel (shown when clicking a day) -->
+      <div id="month-detail" class="month-detail" style="display:none;">
+        <div class="month-detail-grid">
+          <div class="card">
+            <div class="card-title month-detail-date"></div>
+            <div class="month-detail-tasks"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Journal Entry</div>
+            <div class="month-detail-journal-q"></div>
+            <div class="month-detail-journal-entry"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container for Reminders -->
+  <div class="toast-container"></div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

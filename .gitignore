@@ -1,3 +1,8 @@
 node_modules/
 .DS_Store
 .env
+planner/venv/
+planner/planner.db
+planner/planner.db-shm
+planner/planner.db-wal
+.claude/

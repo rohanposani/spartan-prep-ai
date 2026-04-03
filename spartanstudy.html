@@ -50,13 +50,13 @@
     .brand-title { font-family: 'Playfair Display', serif; font-size: 15px; color: #fff; line-height: 1.2; }
     .brand-sub   { font-size: 11px; color: rgba(255,255,255,.4); }
     .sidebar-nav { padding: 14px 8px; flex: 1; }
-    .nav-section-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: rgba(255,255,255,.28); padding: 8px 12px 4px; }
+    .nav-section-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #FFFFFF; padding: 8px 12px 4px; }
     .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 13px; border-radius: var(--r-sm); cursor: pointer; color: rgba(255,255,255,.62); font-size: 13.5px; transition: all .14s; margin-bottom: 2px; }
     .nav-item:hover { background: rgba(255,255,255,.07); color: rgba(255,255,255,.9); }
     .nav-item.active { background: var(--blue); color: #fff; font-weight: 500; }
     .nav-icon { font-size: 15px; width: 20px; text-align: center; }
     .sidebar-files { padding: 10px 8px 12px; border-top: 1px solid rgba(255,255,255,.08); }
-    .files-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: rgba(255,255,255,.28); padding: 4px 12px 8px; }
+    .files-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #FFFFFF; padding: 4px 12px 8px; }
     .upload-drop { border: 1.5px dashed rgba(255,255,255,.18); border-radius: var(--r-sm); padding: 14px 10px; text-align: center; cursor: pointer; transition: all .18s; margin-bottom: 6px; }
     .upload-drop:hover, .upload-drop.drag { border-color: var(--gold); background: rgba(229,168,35,.06); }
     .upload-drop-icon { font-size: 20px; margin-bottom: 4px; }
@@ -416,7 +416,7 @@ async function callGPT(messages, jsonMode) {
 // ══════════════════════════════════════════════════════════════
 // SIDEBAR
 // ══════════════════════════════════════════════════════════════
-function Sidebar({ page, go, files, onUpload, onRemove }) {
+function Sidebar({ page, go, files, onUpload, onRemove, userEmail, onSignOut }) {
   const inputRef = useRef();
   const [drag, setDrag] = useState(false);
 
@@ -483,10 +483,11 @@ function Sidebar({ page, go, files, onUpload, onRemove }) {
 
       <div className="sidebar-user">
         <div className="user-avi">👤</div>
-        <div>
-          <div className="user-name">SJSU Student</div>
+        <div style={{flex:1,minWidth:0}}>
+          <div className="user-name" style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}} title={userEmail}>{userEmail || 'SJSU Student'}</div>
           <div className="user-status">● Connected</div>
         </div>
+        <span onClick={onSignOut} style={{fontSize:'11px',color:'rgba(255,255,255,.4)',cursor:'pointer',flexShrink:0}} title="Sign out">✕</span>
       </div>
     </div>
   );
@@ -508,7 +509,7 @@ function Dashboard({ files, flashcards, scores, tasks, notes, go }) {
             <div style={{fontSize:'11px',color:'var(--gold)',fontWeight:'700',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'7px'}}>✦ Ready for SJSU success</div>
             <h2 style={{fontFamily:'Playfair Display,serif',fontSize:'27px',marginBottom:'7px'}}>Spartan Study</h2>
             <p style={{opacity:.65,fontSize:'13px'}}>
-              {files.length===0 ? 'Upload course materials from the sidebar to begin' : files.length + ' file' + (files.length!==1?'s':'') + ' loaded · GPT-4o ready'}
+              {files.length===0 ? 'Upload course materials from the sidebar to begin' : files.length + ' file' + (files.length!==1?'s':'') + ' loaded · GPT-4.1 ready'}
             </p>
           </div>
           <div style={{fontSize:'72px',opacity:.18}}>🎓</div>
@@ -539,7 +540,7 @@ function Dashboard({ files, flashcards, scores, tasks, notes, go }) {
             {p:'flashcards',ico:'🃏',h:'Generate Flashcards', d:'Active recall from your notes'},
             {p:'quiz',      ico:'📝',h:'Take a Quiz',           d:'AI exam simulator with custom options'},
             {p:'simplifier',ico:'✨',h:'Simplify a Concept',    d:'Break down complex jargon'},
-            {p:'tutor',     ico:'🎓',h:'Ask the Tutor',         d:'Chat with GPT-4o about your material'},
+            {p:'tutor',     ico:'🎓',h:'Ask the Tutor',         d:'Chat with AI about your material'},
             {p:'faq',       ico:'❓',h:'FAQ Matrix',            d:'Auto-extract key Q&A from materials'},
             {p:'notes',     ico:'📓',h:'Notes',                 d:'Create and organize study notes'},
             {p:'planner',   ico:'📅',h:'Study Planner',         d:'Track tasks and exam deadlines'},
@@ -668,7 +669,7 @@ function Flashcards({ ctx, files, cards, setCards }) {
       {loading && (
         <div className="card" style={{textAlign:'center',padding:'60px'}}>
           <div className="spin spin-blue" style={{margin:'0 auto 14px'}}/>
-          <p style={{color:'var(--gray-400)',fontSize:'13px'}}>Professor GPT-4o is building your {count}-card study deck…</p>
+          <p style={{color:'var(--gray-400)',fontSize:'13px'}}>AI Professor is building your {count}-card study deck…</p>
         </div>
       )}
       {cards.length > 0 && !loading && (
@@ -921,7 +922,7 @@ function Quiz({ ctx, files, onScore }) {
       {loading && (
         <div className="card" style={{textAlign:'center',padding:'60px'}}>
           <div className="spin spin-blue" style={{margin:'0 auto 14px'}}/>
-          <p style={{color:'var(--gray-400)',fontSize:'13px'}}>Professor GPT-4o is crafting your {qCount}-question exam…</p>
+          <p style={{color:'var(--gray-400)',fontSize:'13px'}}>AI Professor is crafting your {qCount}-question exam…</p>
         </div>
       )}
       {qs.length===0&&!loading&&!ctx&&(
@@ -981,7 +982,7 @@ function Simplifier({ ctx }) {
           </button>
         </div>
         <div>
-          {loading&&<div className="card" style={{textAlign:'center',padding:'60px'}}><div className="spin spin-blue" style={{margin:'0 auto 14px'}}/><p style={{color:'var(--gray-400)',fontSize:'13px'}}>GPT-4o is simplifying…</p></div>}
+          {loading&&<div className="card" style={{textAlign:'center',padding:'60px'}}><div className="spin spin-blue" style={{margin:'0 auto 14px'}}/><p style={{color:'var(--gray-400)',fontSize:'13px'}}>AI is simplifying…</p></div>}
           {result&&!loading&&(
             <div className="card fade-in">
               <div style={{marginBottom:'16px'}}>
@@ -1043,7 +1044,7 @@ function Tutor({ ctx }) {
       <div className="flex aic jcb mb4">
         <div>
           <h2 style={{fontFamily:'Playfair Display,serif',fontSize:'23px'}}>Academic Tutor</h2>
-          <p style={{color:'var(--gray-400)',fontSize:'12.5px'}}>Powered by GPT-4o · {ctx?'📚 Course materials loaded':'💬 General mode'}</p>
+          <p style={{color:'var(--gray-400)',fontSize:'12.5px'}}>Powered by GPT-4.1-mini · {ctx?'📚 Course materials loaded':'💬 General mode'}</p>
         </div>
         <div className="flex aic gap2">
           <div style={{width:'8px',height:'8px',background:'var(--success)',borderRadius:'50%'}}/>
@@ -1116,7 +1117,7 @@ function FAQMatrix({ ctx }) {
       {loading&&(
         <div className="card" style={{textAlign:'center',padding:'60px'}}>
           <div className="spin spin-blue" style={{margin:'0 auto 14px'}}/>
-          <p style={{color:'var(--gray-400)',fontSize:'13px'}}>GPT-4o is building your knowledge base…</p>
+          <p style={{color:'var(--gray-400)',fontSize:'13px'}}>AI is building your knowledge base…</p>
         </div>
       )}
       {faqs.length>0&&!loading&&(
@@ -1162,14 +1163,45 @@ function FAQMatrix({ ctx }) {
 // ══════════════════════════════════════════════════════════════
 // NOTES (New: per-topic note creation and management)
 // ══════════════════════════════════════════════════════════════
-function Notes({ notes, setNotes }) {
+function Notes({ notes, setNotes, ctx }) {
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState(null);
   const [viewId, setViewId] = useState(null);
   const [search, setSearch] = useState('');
   const [topicFilter, setTopicFilter] = useState('All');
+  const [genLoading, setGenLoading] = useState(false);
+  const [genErr, setGenErr] = useState('');
   const emptyForm = {title:'',topic:'',content:''};
   const [form, setForm] = useState(emptyForm);
+
+  const generateNotes = async () => {
+    if (!ctx) return;
+    setGenLoading(true); setGenErr('');
+    try {
+      const res = await fetch('/api/generate-notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: ctx.slice(0, 20000) }),
+      });
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); } catch(e) {
+        throw new Error('Invalid response from server.');
+      }
+      if (!res.ok) throw new Error(data.error || 'Server error');
+      const n = data.notes;
+      const now = new Date().toISOString();
+      setNotes(prev => [...prev, {
+        id: Date.now(),
+        title: n.title || 'AI-Generated Notes',
+        topic: n.topic || '',
+        content: n.content || '',
+        createdAt: now,
+        updatedAt: now,
+      }]);
+    } catch(e) { setGenErr(e.message); }
+    setGenLoading(false);
+  };
 
   const allTopics = ['All',...Array.from(new Set(notes.filter(n=>n.topic).map(n=>n.topic)))];
   const fmtDate = iso => {const d=new Date(iso);return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+' '+d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});};
@@ -1199,8 +1231,21 @@ function Notes({ notes, setNotes }) {
           <h2 style={{fontFamily:'Playfair Display,serif',fontSize:'23px'}}>Notes</h2>
           <p style={{color:'var(--gray-400)',fontSize:'12.5px'}}>Create and organize your study notes by topic</p>
         </div>
-        <button className="btn btn-primary" onClick={() => {setShowForm(true);setEditId(null);setForm(emptyForm);}}>+ New Note</button>
+        <div className="flex gap2">
+          <button className="btn btn-gold" onClick={generateNotes} disabled={!ctx||genLoading}>
+            {genLoading ? <><div className="spin" style={{borderColor:'rgba(0,0,0,.2)',borderTopColor:'var(--blue-dark)'}}/>Generating…</> : '✨ Generate Notes'}
+          </button>
+          <button className="btn btn-primary" onClick={() => {setShowForm(true);setEditId(null);setForm(emptyForm);}}>+ New Note</button>
+        </div>
       </div>
+      {genErr&&<div className="alert alert-warn mb4">⚠️ {genErr}</div>}
+      {!ctx&&<div className="alert alert-info mb4">📁 Upload course materials from the sidebar to generate AI notes.</div>}
+      {genLoading&&(
+        <div className="card mb5" style={{textAlign:'center',padding:'60px'}}>
+          <div className="spin spin-blue" style={{margin:'0 auto 14px'}}/>
+          <p style={{color:'var(--gray-400)',fontSize:'13px'}}>AI is analyzing your materials and generating study notes…</p>
+        </div>
+      )}
 
       {showForm&&(
         <div className="modal-bg" onClick={e=>e.target===e.currentTarget&&(setShowForm(false),setEditId(null))}>
@@ -1537,9 +1582,50 @@ function StudyTimer() {
 }
 
 // ══════════════════════════════════════════════════════════════
+// AUTH GATE — SJSU Email Verification
+// ══════════════════════════════════════════════════════════════
+function AuthGate({ onAuth }) {
+  const [email, setEmail] = useState('');
+  const [err, setErr] = useState('');
+
+  const submit = () => {
+    const trimmed = email.trim().toLowerCase();
+    if (!trimmed) { setErr('Please enter your SJSU email address.'); return; }
+    if (!trimmed.endsWith('@sjsu.edu')) { setErr('Please enter a valid @sjsu.edu email address.'); return; }
+    localStorage.setItem('sjsu_email', trimmed);
+    onAuth(trimmed);
+  };
+
+  return (
+    <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'linear-gradient(135deg, var(--blue) 0%, var(--blue-dark) 50%, var(--blue-deeper) 100%)'}}>
+      <div style={{background:'#fff',borderRadius:'var(--r-lg)',padding:'40px',maxWidth:'420px',width:'92%',boxShadow:'var(--shadow-lg)',textAlign:'center'}}>
+        <div style={{width:'56px',height:'56px',background:'var(--gold)',borderRadius:'14px',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:'700',color:'var(--blue-dark)',fontSize:'20px',margin:'0 auto 18px'}}>SP</div>
+        <h1 style={{fontFamily:'Playfair Display,serif',fontSize:'24px',color:'var(--gray-800)',marginBottom:'6px'}}>Spartan Prep AI</h1>
+        <p style={{fontSize:'13.5px',color:'var(--gray-400)',marginBottom:'28px'}}>Sign in with your SJSU email to continue</p>
+        {err && <div className="alert alert-warn" style={{textAlign:'left',marginBottom:'14px'}}>⚠️ {err}</div>}
+        <input
+          className="inp"
+          type="email"
+          placeholder="your.name@sjsu.edu"
+          value={email}
+          onChange={e => { setEmail(e.target.value); setErr(''); }}
+          onKeyDown={e => e.key === 'Enter' && submit()}
+          style={{marginBottom:'16px'}}
+        />
+        <button className="btn btn-primary" style={{width:'100%',justifyContent:'center',padding:'12px'}} onClick={submit}>
+          Verify & Continue →
+        </button>
+        <p style={{fontSize:'11.5px',color:'var(--gray-400)',marginTop:'18px'}}>Only @sjsu.edu email addresses are accepted</p>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════
 // APP ROOT
 // ══════════════════════════════════════════════════════════════
 function App() {
+  const [userEmail, setUserEmail] = useState(() => localStorage.getItem('sjsu_email') || '');
   const [page, setPage] = useState('dashboard');
   const [files, setFiles] = useState([]);
   const [ctx, setCtx] = useState('');
@@ -1550,6 +1636,10 @@ function App() {
   const [processing, setProcessing] = useState(false);
   const [toast, setToast] = useState(null);
 
+  if (!userEmail) {
+    return <AuthGate onAuth={setUserEmail} />;
+  }
+
   const showToast = (message, type) => setToast({message,type});
 
   const meta = {
@@ -1557,7 +1647,7 @@ function App() {
     flashcards:{title:'Flashcard Deck',sub:'Active recall for deep understanding'},
     quiz:{title:'Spartan Quiz',sub:'AI-generated exam simulator'},
     simplifier:{title:'Concept Simplifier',sub:'Transform complex jargon into clarity'},
-    tutor:{title:'Academic Tutor',sub:'24/7 GPT-4o study companion'},
+    tutor:{title:'Academic Tutor',sub:'24/7 AI study companion'},
     faq:{title:'FAQ Matrix',sub:'Auto-extracted course knowledge base'},
     notes:{title:'Notes',sub:'Create and organize study notes'},
     planner:{title:'Study Planner',sub:'Track tasks and exam deadlines'},
@@ -1599,13 +1689,13 @@ function App() {
 
   return (
     <div className="layout">
-      <Sidebar page={page} go={setPage} files={files} onUpload={onUpload} onRemove={onRemove}/>
+      <Sidebar page={page} go={setPage} files={files} onUpload={onUpload} onRemove={onRemove} userEmail={userEmail} onSignOut={() => { localStorage.removeItem('sjsu_email'); setUserEmail(''); }}/>
       <div className="main">
         <div className="topbar">
           <div><div className="topbar-title">{title}</div><div className="topbar-sub">{sub}</div></div>
           <div className="flex aic gap3">
             {processing&&<div className="flex aic gap2" style={{fontSize:'12.5px',color:'var(--gray-400)'}}><div className="spin spin-blue" style={{width:'13px',height:'13px'}}/>Parsing file…</div>}
-            <span className="badge badge-gold">✦ GPT-4o</span>
+            <span className="badge badge-gold">✦ GPT-4.1-mini</span>
           </div>
         </div>
         <div className="content">
@@ -1615,7 +1705,7 @@ function App() {
           {page==='simplifier'&&<Simplifier ctx={ctx}/>}
           {page==='tutor'&&<Tutor ctx={ctx}/>}
           {page==='faq'&&<FAQMatrix ctx={ctx}/>}
-          {page==='notes'&&<Notes notes={notes} setNotes={setNotes}/>}
+          {page==='notes'&&<Notes notes={notes} setNotes={setNotes} ctx={ctx}/>}
           {page==='planner'&&<StudyPlanner tasks={tasks} setTasks={setTasks}/>}
           {page==='timer'&&<StudyTimer/>}
         </div>
