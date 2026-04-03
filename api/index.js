@@ -71,6 +71,12 @@ app.post('/api/generate-notes', async (req, res) => {
     return res.status(400).json({ error: 'content string is required' });
   }
 
+  if (content.replace(/═══.*═══/g, '').trim().length < 100) {
+    return res.status(400).json({
+      error: 'Not enough text was extracted from your materials. Try converting PPT files to PPTX or PDF format and re-uploading.',
+    });
+  }
+
   try {
     const body = {
       model: 'gpt-4.1-mini',

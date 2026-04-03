@@ -336,13 +336,19 @@ async function parseDOC(file) {
 }
 
 function extractPPTText(xml) {
-  // Extract text from <a:t> tags (body text, titles, SmartArt, etc.)
-  const aMatches = xml.match(/<a:t[^>]*?>([^<]+)<\/a:t>/g) || [];
-  const aText = aMatches.map(m => m.replace(/<[^>]*>/g, '')).join(' ');
-  // Also extract from <a:fld> fields and <c:v> chart values
-  const fMatches = xml.match(/<c:v>([^<]+)<\/c:v>/g) || [];
-  const fText = fMatches.map(m => m.replace(/<[^>]*>/g, '')).join(' ');
-  return (aText + ' ' + fText).trim();
+  try {
+    const doc = new DOMParser().parseFromString(xml, 'text/xml');
+    const walker = document.createTreeWalker(doc, NodeFilter.SHOW_TEXT);
+    const texts = [];
+    while (walker.nextNode()) {
+      const t = walker.currentNode.textContent.trim();
+      if (t && t.length > 1) texts.push(t);
+    }
+    return texts.join(' ').trim();
+  } catch(e) {
+    const matches = xml.match(/<a:t[^>]*?>([^<]+)<\/a:t>/g) || [];
+    return matches.map(m => m.replace(/<[^>]*>/g, '')).join(' ').trim();
+  }
 }
 
 async function parsePPTXFull(file) {
@@ -361,7 +367,7 @@ async function parsePPTXFull(file) {
     if (text) out += `[Slide] ${text}\n\n`;
   }
 
-  // 2. Slide notes (often contain detailed explanations)
+  // 2. Slide notes
   const notes = allFiles
     .filter(n => /ppt\/notesSlides\/notesSlide\d+\.xml$/.test(n))
     .sort((a, b) => parseInt(a.match(/notesSlide(\d+)/)[1]) - parseInt(b.match(/notesSlide(\d+)/)[1]));
@@ -387,17 +393,34 @@ async function parsePPTXFull(file) {
     if (text) out += `[Chart] ${text}\n\n`;
   }
 
+  // 5. Fallback: scan all remaining XML files if nothing found
+  if (!out.trim()) {
+    const scanned = new Set([...slides, ...notes, ...diagrams, ...charts]);
+    const remaining = allFiles.filter(n => n.endsWith('.xml') && !scanned.has(n));
+    for (const name of remaining) {
+      const xml = await zip.files[name].async('string');
+      const text = extractPPTText(xml);
+      if (text) out += `[Content] ${text}\n\n`;
+    }
+  }
+
   return out.trim();
 }
 
 async function parsePPT(file) {
-  const text = await parsePPTXFull(file);
-  return text || 'Could not extract text from PPT.';
+  try {
+    const text = await parsePPTXFull(file);
+    if (text) return text;
+  } catch(e) { /* JSZip can't read binary .ppt */ }
+  return 'Could not extract text from this .ppt file. Please convert it to .pptx format (File > Save As > .pptx in PowerPoint) and re-upload.';
 }
 
 async function parsePPTX(file) {
-  const text = await parsePPTXFull(file);
-  return text || 'Could not extract text from PPTX.';
+  try {
+    const text = await parsePPTXFull(file);
+    if (text) return text;
+  } catch(e) { /* Unexpected parse error */ }
+  return 'Could not extract text from this .pptx file. The file may contain only images. Try converting to PDF and re-uploading.';
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -1201,6 +1224,11 @@ function Notes({ notes, setNotes, ctx }) {
 
   const generateNotes = async () => {
     if (!ctx) return;
+    const meaningful = ctx.replace(/═══.*═══/g, '').trim();
+    if (meaningful.length < 100) {
+      setGenErr('Not enough text was extracted from your materials. Try converting PPT files to PPTX or PDF format and re-uploading.');
+      return;
+    }
     setGenLoading(true); setGenErr('');
     try {
       const res = await fetch('/api/generate-notes', {
@@ -1690,9 +1718,14 @@ function App() {
       if (ext==='ppt') text=await parsePPT(file);
       if (ext==='pptx') text=await parsePPTX(file);
       if (!text) throw new Error('Unsupported file type');
+      if (text.startsWith('Could not extract') || text.length < 50) {
+        showToast('⚠️ Little or no text found in ' + file.name + '. Try converting to PDF or PPTX.', 'error');
+      }
       setFiles(prev=>[...prev,{name:file.name,text}]);
       setCtx(prev=>prev+'\n\n═══ '+file.name+' ═══\n'+text);
-      showToast('📁 '+file.name+' loaded successfully','success');
+      if (!text.startsWith('Could not extract') && text.length >= 50) {
+        showToast('📁 '+file.name+' loaded successfully','success');
+      }
     } catch(e) {console.error('Parse error:',e);showToast('Failed to parse '+file.name,'error');}
     setProcessing(false);
   };
