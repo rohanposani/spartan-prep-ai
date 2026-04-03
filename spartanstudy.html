@@ -335,44 +335,69 @@ async function parseDOC(file) {
   return res.value.trim() || 'Could not extract text from DOC.';
 }
 
-async function parsePPT(file) {
+function extractPPTText(xml) {
+  // Extract text from <a:t> tags (body text, titles, SmartArt, etc.)
+  const aMatches = xml.match(/<a:t[^>]*?>([^<]+)<\/a:t>/g) || [];
+  const aText = aMatches.map(m => m.replace(/<[^>]*>/g, '')).join(' ');
+  // Also extract from <a:fld> fields and <c:v> chart values
+  const fMatches = xml.match(/<c:v>([^<]+)<\/c:v>/g) || [];
+  const fText = fMatches.map(m => m.replace(/<[^>]*>/g, '')).join(' ');
+  return (aText + ' ' + fText).trim();
+}
+
+async function parsePPTXFull(file) {
   const buf = await file.arrayBuffer();
   const zip = await JSZip.loadAsync(buf);
-  const keys = Object.keys(zip.files)
+  const allFiles = Object.keys(zip.files);
+
+  // 1. Slides (main content)
+  const slides = allFiles
     .filter(n => /ppt\/slides\/slide\d+\.xml$/.test(n))
-    .sort((a, b) => {
-      const na = parseInt(a.match(/slide(\d+)/)[1]);
-      const nb = parseInt(b.match(/slide(\d+)/)[1]);
-      return na - nb;
-    });
+    .sort((a, b) => parseInt(a.match(/slide(\d+)/)[1]) - parseInt(b.match(/slide(\d+)/)[1]));
   let out = '';
-  for (const name of keys) {
-    const xml     = await zip.files[name].async('string');
-    const matches = xml.match(/<a:t[^>]*?>([^<]+)<\/a:t>/g) || [];
-    const text    = matches.map(m => m.replace(/<[^>]*>/g, '')).join(' ').trim();
+  for (const name of slides) {
+    const xml = await zip.files[name].async('string');
+    const text = extractPPTText(xml);
     if (text) out += `[Slide] ${text}\n\n`;
   }
-  return out.trim() || 'Could not extract text from PPT.';
+
+  // 2. Slide notes (often contain detailed explanations)
+  const notes = allFiles
+    .filter(n => /ppt\/notesSlides\/notesSlide\d+\.xml$/.test(n))
+    .sort((a, b) => parseInt(a.match(/notesSlide(\d+)/)[1]) - parseInt(b.match(/notesSlide(\d+)/)[1]));
+  for (const name of notes) {
+    const xml = await zip.files[name].async('string');
+    const text = extractPPTText(xml);
+    if (text) out += `[Notes] ${text}\n\n`;
+  }
+
+  // 3. Diagrams / SmartArt
+  const diagrams = allFiles.filter(n => /ppt\/diagrams\/.*\.xml$/.test(n));
+  for (const name of diagrams) {
+    const xml = await zip.files[name].async('string');
+    const text = extractPPTText(xml);
+    if (text) out += `[Diagram] ${text}\n\n`;
+  }
+
+  // 4. Charts
+  const charts = allFiles.filter(n => /ppt\/charts\/.*\.xml$/.test(n));
+  for (const name of charts) {
+    const xml = await zip.files[name].async('string');
+    const text = extractPPTText(xml);
+    if (text) out += `[Chart] ${text}\n\n`;
+  }
+
+  return out.trim();
+}
+
+async function parsePPT(file) {
+  const text = await parsePPTXFull(file);
+  return text || 'Could not extract text from PPT.';
 }
 
 async function parsePPTX(file) {
-  const buf  = await file.arrayBuffer();
-  const zip  = await JSZip.loadAsync(buf);
-  const keys = Object.keys(zip.files)
-    .filter(n => /ppt\/slides\/slide\d+\.xml$/.test(n))
-    .sort((a, b) => {
-      const na = parseInt(a.match(/slide(\d+)/)[1]);
-      const nb = parseInt(b.match(/slide(\d+)/)[1]);
-      return na - nb;
-    });
-  let out = '';
-  for (const name of keys) {
-    const xml     = await zip.files[name].async('string');
-    const matches = xml.match(/<a:t[^>]*?>([^<]+)<\/a:t>/g) || [];
-    const text    = matches.map(m => m.replace(/<[^>]*>/g, '')).join(' ').trim();
-    if (text) out += `[Slide] ${text}\n\n`;
-  }
-  return out.trim() || 'Could not extract text from PPTX.';
+  const text = await parsePPTXFull(file);
+  return text || 'Could not extract text from PPTX.';
 }
 
 // ══════════════════════════════════════════════════════════════
