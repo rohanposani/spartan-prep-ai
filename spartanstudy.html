@@ -438,13 +438,13 @@ function safeJSON(raw) {
 // ══════════════════════════════════════════════════════════════
 // API CALL
 // ══════════════════════════════════════════════════════════════
-async function callGPT(messages, jsonMode) {
+async function callGPT(messages, jsonMode, maxTokens) {
   let res;
   try {
     res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages, json_mode: jsonMode }),
+      body: JSON.stringify({ messages, json_mode: jsonMode, max_tokens: maxTokens }),
     });
   } catch(e) {
     throw new Error('Cannot connect to the backend server. Make sure the Express server is running: node server.js');
@@ -664,7 +664,7 @@ function Flashcards({ ctx, files, cards, setCards }) {
       const raw = await callGPT([
         {role:'system', content:'You are an expert SJSU professor. Create high-yield exam flashcards. '+typeInst[fcType]+' Return ONLY valid JSON: {"flashcards":[{"front":"...","back":"..."}]}. Generate exactly '+n+' cards focused on exam-essential content.'},
         {role:'user', content:'Create '+n+' flashcards from this material:\n\n'+ctx.slice(0,MAX_CTX)},
-      ], true);
+      ], true, 2048);
       const data = safeJSON(raw);
       if (!data.flashcards||!Array.isArray(data.flashcards)) throw new Error('Invalid response format');
       setCards(data.flashcards.map(c => ({...c, mastered:false})));
@@ -812,7 +812,7 @@ function Quiz({ ctx, files, onScore }) {
       const raw = await callGPT([
         {role:'system', content:'You are an expert SJSU professor. Create a rigorous '+n+'-question multiple-choice exam.'+topicInst+' Return ONLY valid JSON: {"questions":[{"question":"...","options":["A","B","C","D"],"correct":0,"explanation":"..."}]}. "correct" is 0-based index.'},
         {role:'user', content:'Create '+n+' MCQ questions from:\n\n'+qCtx.slice(0,MAX_CTX)},
-      ], true);
+      ], true, 2048);
       const data = safeJSON(raw);
       if (!data.questions||!Array.isArray(data.questions)) throw new Error('Invalid response format');
       setQs(data.questions);
@@ -1002,7 +1002,7 @@ function Simplifier({ ctx }) {
       const raw = await callGPT([
         {role:'system',content:'You are an expert SJSU academic tutor. '+inst[style]+' Return ONLY valid JSON: {"simple_explanation":"...","analogy":"...","key_takeaways":["...","...","..."]}'},
         {role:'user',content:'Explain this concept: '+input+(ctx?'\n\nContext: '+ctx.slice(0,4000):'')},
-      ], true);
+      ], true, 1024);
       setResult(safeJSON(raw));
     } catch(e) {setErr(e.message);}
     setLoading(false);
@@ -1134,7 +1134,7 @@ function FAQMatrix({ ctx }) {
       const raw = await callGPT([
         {role:'system',content:'You are an expert SJSU professor. Extract the most important questions and answers from the material. Group by topic. Return ONLY valid JSON: {"faqs":[{"topic":"Topic","question":"...","answer":"..."}]}. Generate 15-25 high-value Q&A pairs.'},
         {role:'user',content:'Extract FAQ pairs from:\n\n'+ctx.slice(0,MAX_CTX)},
-      ], true);
+      ], true, 2048);
       const data = safeJSON(raw);
       if (!data.faqs||!Array.isArray(data.faqs)) throw new Error('Invalid response');
       setFaqs(data.faqs);
@@ -1211,50 +1211,14 @@ function FAQMatrix({ ctx }) {
 // ══════════════════════════════════════════════════════════════
 // NOTES (New: per-topic note creation and management)
 // ══════════════════════════════════════════════════════════════
-function Notes({ notes, setNotes, ctx }) {
+function Notes({ notes, setNotes }) {
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState(null);
   const [viewId, setViewId] = useState(null);
   const [search, setSearch] = useState('');
   const [topicFilter, setTopicFilter] = useState('All');
-  const [genLoading, setGenLoading] = useState(false);
-  const [genErr, setGenErr] = useState('');
   const emptyForm = {title:'',topic:'',content:''};
   const [form, setForm] = useState(emptyForm);
-
-  const generateNotes = async () => {
-    if (!ctx) return;
-    const meaningful = ctx.replace(/═══.*═══/g, '').trim();
-    if (meaningful.length < 100) {
-      setGenErr('Not enough text was extracted from your materials. Try converting PPT files to PPTX or PDF format and re-uploading.');
-      return;
-    }
-    setGenLoading(true); setGenErr('');
-    try {
-      const res = await fetch('/api/generate-notes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: ctx.slice(0, 20000) }),
-      });
-      const text = await res.text();
-      let data;
-      try { data = JSON.parse(text); } catch(e) {
-        throw new Error('Invalid response from server.');
-      }
-      if (!res.ok) throw new Error(data.error || 'Server error');
-      const n = data.notes;
-      const now = new Date().toISOString();
-      setNotes(prev => [...prev, {
-        id: Date.now(),
-        title: n.title || 'AI-Generated Notes',
-        topic: n.topic || '',
-        content: n.content || '',
-        createdAt: now,
-        updatedAt: now,
-      }]);
-    } catch(e) { setGenErr(e.message); }
-    setGenLoading(false);
-  };
 
   const allTopics = ['All',...Array.from(new Set(notes.filter(n=>n.topic).map(n=>n.topic)))];
   const fmtDate = iso => {const d=new Date(iso);return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+' '+d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});};
@@ -1284,21 +1248,8 @@ function Notes({ notes, setNotes, ctx }) {
           <h2 style={{fontFamily:'Playfair Display,serif',fontSize:'23px'}}>Notes</h2>
           <p style={{color:'var(--gray-400)',fontSize:'12.5px'}}>Create and organize your study notes by topic</p>
         </div>
-        <div className="flex gap2">
-          <button className="btn btn-gold" onClick={generateNotes} disabled={!ctx||genLoading}>
-            {genLoading ? <><div className="spin" style={{borderColor:'rgba(0,0,0,.2)',borderTopColor:'var(--blue-dark)'}}/>Generating…</> : '✨ Generate Notes'}
-          </button>
-          <button className="btn btn-primary" onClick={() => {setShowForm(true);setEditId(null);setForm(emptyForm);}}>+ New Note</button>
-        </div>
+        <button className="btn btn-primary" onClick={() => {setShowForm(true);setEditId(null);setForm(emptyForm);}}>+ New Note</button>
       </div>
-      {genErr&&<div className="alert alert-warn mb4">⚠️ {genErr}</div>}
-      {!ctx&&<div className="alert alert-info mb4">📁 Upload course materials from the sidebar to generate AI notes.</div>}
-      {genLoading&&(
-        <div className="card mb5" style={{textAlign:'center',padding:'60px'}}>
-          <div className="spin spin-blue" style={{margin:'0 auto 14px'}}/>
-          <p style={{color:'var(--gray-400)',fontSize:'13px'}}>AI is analyzing your materials and generating study notes…</p>
-        </div>
-      )}
 
       {showForm&&(
         <div className="modal-bg" onClick={e=>e.target===e.currentTarget&&(setShowForm(false),setEditId(null))}>
@@ -1763,7 +1714,7 @@ function App() {
           {page==='simplifier'&&<Simplifier ctx={ctx}/>}
           {page==='tutor'&&<Tutor ctx={ctx}/>}
           {page==='faq'&&<FAQMatrix ctx={ctx}/>}
-          {page==='notes'&&<Notes notes={notes} setNotes={setNotes} ctx={ctx}/>}
+          {page==='notes'&&<Notes notes={notes} setNotes={setNotes}/>}
           {page==='planner'&&<StudyPlanner tasks={tasks} setTasks={setTasks}/>}
           {page==='timer'&&<StudyTimer/>}
         </div>
