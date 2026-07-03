@@ -912,7 +912,7 @@ function Quiz({ ctx, files, onScore }) {
               <div className="setup-label">Number of Questions</div>
               <div className="flex aic gap2" style={{flexWrap:'wrap'}}>
                 <input type="number" className="count-input" min="5" max="50" value={qCount} onChange={e => setQCount(Math.max(5,Math.min(50,parseInt(e.target.value)||5)))}/>
-                {[5,10,15,20,25].map(n => <button key={n} className={'quick-count'+(qCount===n?' on':'')} onClick={() => setQCount(n)}>{n}</button>)}
+                {[5,10,15,20,25,50].map(n => <button key={n} className={'quick-count'+(qCount===n?' on':'')} onClick={() => setQCount(n)}>{n}</button>)}
               </div>
             </div>
             <div>
