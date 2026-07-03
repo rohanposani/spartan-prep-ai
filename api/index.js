@@ -32,7 +32,7 @@ app.post('/api/chat', async (req, res) => {
       model: 'gpt-4.1-mini',
       messages,
       temperature: 0.7,
-      max_tokens: Math.min(max_tokens || 4096, 4096),
+      max_tokens: Math.min(max_tokens || 4096, 16000),
     };
     if (json_mode) {
       body.response_format = { type: 'json_object' };
