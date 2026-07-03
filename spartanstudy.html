@@ -662,7 +662,7 @@ function Flashcards({ ctx, files, cards, setCards }) {
     const n = Math.max(1, Math.min(100, count));
     try {
       const raw = await callGPT([
-        {role:'system', content:'You are an expert SJSU professor. Create high-yield exam flashcards. '+typeInst[fcType]+' Return ONLY valid JSON: {"flashcards":[{"front":"...","back":"..."}]}. Generate exactly '+n+' cards focused on exam-essential content.'},
+        {role:'system', content:'You are an expert SJSU professor. Create high-yield exam flashcards. '+typeInst[fcType]+' Return ONLY valid JSON: {"flashcards":[{"front":"...","back":"..."}]}. Generate exactly '+n+' cards focused on exam-essential content. Keep each answer concise (1-2 sentences).'},
         {role:'user', content:'Create '+n+' flashcards from this material:\n\n'+ctx.slice(0,MAX_CTX)},
       ], true, Math.min(n*90+500, 16000));
       const data = safeJSON(raw);
@@ -806,11 +806,11 @@ function Quiz({ ctx, files, onScore }) {
     const qCtx = getCtx();
     if (!qCtx) return;
     setLoading(true);setErr('');setDone(false);setQIdx(0);setSel(null);setShown(false);setScore(0);setAnswers([]);
-    const n = Math.max(5,Math.min(100,qCount));
+    const n = Math.max(5,Math.min(50,qCount));
     const topicInst = topicFocus.trim() ? ' Focus specifically on: '+topicFocus.trim()+'.' : '';
     try {
       const raw = await callGPT([
-        {role:'system', content:'You are an expert SJSU professor. Create a rigorous '+n+'-question multiple-choice exam.'+topicInst+' Return ONLY valid JSON: {"questions":[{"question":"...","options":["A","B","C","D"],"correct":0,"explanation":"..."}]}. "correct" is 0-based index.'},
+        {role:'system', content:'You are an expert SJSU professor. Create a rigorous '+n+'-question multiple-choice exam.'+topicInst+' Return ONLY valid JSON: {"questions":[{"question":"...","options":["A","B","C","D"],"correct":0,"explanation":"..."}]}. "correct" is 0-based index. Keep each question and explanation concise (explanation one short sentence).'},
         {role:'user', content:'Create '+n+' MCQ questions from:\n\n'+qCtx.slice(0,MAX_CTX)},
       ], true, Math.min(n*170+500, 16000));
       const data = safeJSON(raw);
@@ -911,8 +911,8 @@ function Quiz({ ctx, files, onScore }) {
             <div>
               <div className="setup-label">Number of Questions</div>
               <div className="flex aic gap2" style={{flexWrap:'wrap'}}>
-                <input type="number" className="count-input" min="5" max="100" value={qCount} onChange={e => setQCount(Math.max(5,Math.min(100,parseInt(e.target.value)||5)))}/>
-                {[5,10,25,50,100].map(n => <button key={n} className={'quick-count'+(qCount===n?' on':'')} onClick={() => setQCount(n)}>{n}</button>)}
+                <input type="number" className="count-input" min="5" max="50" value={qCount} onChange={e => setQCount(Math.max(5,Math.min(50,parseInt(e.target.value)||5)))}/>
+                {[5,10,15,20,25].map(n => <button key={n} className={'quick-count'+(qCount===n?' on':'')} onClick={() => setQCount(n)}>{n}</button>)}
               </div>
             </div>
             <div>
